@@ -1,2 +1,3 @@
 # adutils
-Helper functions for my AppDaemon apps
+
+Helper functions for AppDaemon apps

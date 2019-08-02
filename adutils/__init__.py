@@ -4,7 +4,7 @@
 """
 
 import pprint
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Any, Callable, Dict, Iterable, Optional
 
 
 def show_info(
@@ -12,7 +12,7 @@ def show_info(
     log: Callable[[Any], None],
     app_name: str,
     config: Dict[str, Any],
-    sensors: Set[str],
+    sensors: Iterable[str],
     icon: Optional[str] = None,
 ) -> None:
     # output initialized values
