@@ -4,11 +4,16 @@
 """
 
 import pprint
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional, Set
 
 
 def show_info(
-    log: Callable, app_name: str, config: dict, sensors: set, icon: Optional[str] = None
+    # log: Any,  # log: Callable[[str, bool], None] or something...
+    log: Callable[[Any], None],
+    app_name: str,
+    config: Dict[str, Any],
+    sensors: Set[str],
+    icon: Optional[str] = None,
 ) -> None:
     # output initialized values
     log("")
@@ -20,7 +25,7 @@ def show_info(
         app_name = f"{icon} \033[1m{app_name}\033[0m"
         ascii_encode = False
 
-    log(app_name, ascii_encode=ascii_encode)
+    log(app_name, ascii_encode=ascii_encode)  # type: ignore
 
     # output app configuration
     for key, value in config.items():
@@ -29,7 +34,6 @@ def show_info(
             value = f"{int(value / 60)}:{int(value % 60):02d} minutes ~ {value} seconds"
 
         if isinstance(value, list):
-
             log(f"  {key}:")
 
             for list_value in value:
@@ -48,6 +52,6 @@ def show_info(
 
     if sensors:
         log(f"  state listener:")
-        [log(f"    - \033[1m{sensor}\033[0m") for sensor in sorted(sensors)]
+        _ = [log(f"    - \033[1m{sensor}\033[0m") for sensor in sorted(sensors)]
 
     log("")
