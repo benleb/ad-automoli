@@ -1,27 +1,3 @@
-# AutoMoLi - **Auto**matic **Mo**tion **Li**ghts
-
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-
-Fully automatic light management based on motion as [AppDaemon](https://github.com/home-assistant/appdaemon) app.  
-
-## Features
-
-* multiple `daytimes` to define different scenes for morning, noon, ...
-* supports **Hue** (for Hue Rooms/Groups) & **Home Assistant** scenes
-* switches lights and plugs (with lights)
-* supports humidity sensor as blocker (the "*shower case*")
-
-## Installation
-
-Use [HACS](https://github.com/custom-components/hacs) or [download](https://github.com/benleb/ad-automoli/releases) the `automoli` directory from inside the `apps` directory here to your local `apps` directory, then add the configuration to enable the `automoli` module.
-
-## Requirements/Usage
-
-*some things are not yet documented here but the code is commented*
-
-* This must be loaded/configured for every 'room' separately, see example configuration.
-* if sensors/lights entities are in this form *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. Manually configured entities have precedence.
-
 ## App configuration
 
 ```yaml
