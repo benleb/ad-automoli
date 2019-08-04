@@ -33,7 +33,7 @@ bathroom:
     - { starttime: "22:30", name: night, light: 0 }
   lights:
     - light.bathroom
-      - switch.plug_68fe8b4c9fa1
+    - switch.plug_68fe8b4c9fa1
   motion:
     - binary_sensor.motion_sensor_158d033224e141
 ```
