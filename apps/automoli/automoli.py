@@ -32,6 +32,7 @@ import adutils
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
+APP_VERSION = "0.1.1"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🤷‍♀️"
@@ -175,7 +176,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.refresh_timer()
 
         # display settings
-        adutils.show_info(self.log, f"{APP_NAME} {self.room.capitalize()}", self.args, self.sensors_motion, icon=APP_ICON)
+        adutils.show_info(self.log, f"{APP_NAME} {self.room.capitalize()}", self.args, self.sensors_motion, icon=APP_ICON, appdaemon_version=self.get_ad_version())
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
