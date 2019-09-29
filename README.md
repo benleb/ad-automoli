@@ -2,7 +2,7 @@
 
 ![PyPI](https://img.shields.io/pypi/v/adutils) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/adutils) ![PyPI - Downloads](https://img.shields.io/pypi/dm/adutils)
 
-Helper functions for AppDaemon apps. Currently there is just code, no documentation. Sorry ¯\_(ツ)_/¯
+Helper functions for AppDaemon apps. Currently there is just code, no documentation. Sorry ¯\\_(ツ)_/¯
 
 ## Install
 ```bash
