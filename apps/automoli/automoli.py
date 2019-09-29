@@ -32,7 +32,7 @@ from adutils import ADutils
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.4.1"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🤷‍♀️"
