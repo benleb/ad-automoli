@@ -4,73 +4,90 @@
 """
 
 from pprint import pformat
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 
-def show_info(
-    log: Callable[[Any], None],
-    app_name: str,
-    config: Dict[str, Any],
-    sensors: Iterable[str],
-    appdaemon_version: str = "",
-    icon: Optional[str] = None,
-) -> None:
-    # output initialized values
-    log("")
+class ADutils:
+    def __init__(
+        self,
+        name: str,
+        config: Dict[str, Any],
+        icon: Optional[str] = None,
+        ad: Any = None,
+    ) -> None:
+        self._name = name
+        self.icon = icon
+        self.config = config
+        self.ad = ad
 
-    appdaemon_v3: bool = bool(int(appdaemon_version[0]) < 4)
+    @property
+    def appdaemon_v3(self) -> bool:
+        return bool(int(self.ad.get_ad_version()[0]) < 4)
 
-    if appdaemon_v3:
-        log(app_name)
-    else:
-        app_name = f"{icon if icon else ''} \033[1m{app_name}\033[0m"
-        log(app_name, ascii_encode=False)
+    @property
+    def name(self) -> str:
+        return self._name
 
-    for key, value in config.items():
+    def log(
+        self, msg: str, icon: Optional[str] = None, *args: Any, **kwargs: Any
+    ) -> None:
 
-        if key == "delay":
-            value = f"{int(value / 60)}:{int(value % 60):02d} minutes ~ {value} seconds"
+        kwargs.setdefault("ascii_encode", False)
 
-        if isinstance(value, list):
-            print_collection(log, key, value, 2)
+        if self.appdaemon_v3:
+            icon = None
+            kwargs.pop("ascii_encode", None)
 
-        elif isinstance(value, dict):
-            print_collection(log, key, value, 4)
+        message = f"{f'{icon} ' if icon else ' '}{msg}"
 
-        else:
-            log(f"  {key}: \033[1m{value}\033[0m")
+        try:
+            self.ad.log(message, *args, **kwargs)
+        except Exception as error:
+            print(f"Oh shit! Writing to AD logger failed: {error}")
 
-    if sensors:
-        log(f"  state listener:")
-        _ = [log(f"    - \033[1m{sensor}\033[0m") for sensor in sorted(sensors)]
+    def show_info(self) -> None:
+        self.log("")
+        self.log(f"\033[1m{self.name}\033[0m", icon=self.icon)
 
-    log("")
+        listeners = self.config.pop("listeners", None)
 
+        for key, value in self.config.items():
 
-def print_collection(
-    log: Callable[[Any], None],
-    key: str,
-    collection: Iterable[Any],
-    indentation: int = 0,
-) -> None:
-
-    log(f"{indentation * ' '}{key}:")
-    indentation = indentation + 2
-
-    for item in collection:
-        indent = indentation * " "
-
-        if isinstance(item, dict):
-
-            if "name" in item:
-                print_collection(log, item.pop("name", ""), item, indentation)
+            if key == "delay":
+                value = f"{int(value / 60)}:{int(value % 60):02d}min ≈ {value}sec"
+            if isinstance(value, list):
+                self.print_collection(key, value, 2)
+            elif isinstance(value, dict):
+                self.print_collection(key, value, 4)
             else:
-                log(f"{indent}\033[1m{pformat(item, compact=True)}\033[0m")
+                self.log(f"  {key}: \033[1m{value}\033[0m")
 
-        elif isinstance(collection, dict):
-            log(
-                f"{indent}{item}: \033[1m{pformat(collection[item], compact=True)}\033[0m"
-            )
+        if listeners:
+            self.log(f"  event listeners:")
+            for listener in sorted(listeners):
+                self.log(f"    - \033[1m{listener}\033[0m")
 
-        else:
-            log(f"{indent}- \033[1m{item}\033[0m")
+        self.log("")
+
+    def print_collection(
+        self, key: str, collection: Iterable[Any], indentation: int = 2
+    ) -> None:
+
+        self.log(f"{indentation * ' '}{key}:")
+        indentation = indentation + 2
+
+        for item in collection:
+            indent = indentation * " "
+
+            if isinstance(item, dict):
+
+                if "name" in item:
+                    self.print_collection(item.pop("name", ""), item, indentation)
+                else:
+                    self.log(f"{indent}\033[1m{pformat(item, compact=True)}\033[0m")
+
+            elif isinstance(collection, dict):
+                self.log(f"{indent}{item}: \033[1m{collection[item]}\033[0m")
+
+            else:
+                self.log(f"{indent}- \033[1m{item}\033[0m")
