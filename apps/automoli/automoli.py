@@ -240,7 +240,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             self.adu.log(
                 f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → {'hue' if self.active['is_hue_group'] else 'ha'} scene: \033[1m{self.active['light_setting'].replace('scene.', '')}\033[0m",
-                icon={ON_ICON}
+                icon=ON_ICON
             )
 
         elif isinstance(self.active["light_setting"], int):
@@ -253,7 +253,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         self.turn_on(entity, brightness_pct=self.active["light_setting"])
                         self.adu.log(
                             f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → brightness: \033[1m{self.active['light_setting']}\033[0m%",
-                            icon={ON_ICON}
+                            icon=ON_ICON
                         )
 
         else:
@@ -282,7 +282,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if any([self.get_state(entity) == "on" for entity in self.lights]):
                 for entity in self.lights:
                     self.turn_off(entity)
-                self.adu.log(f"no motion in \033[1m{self.room.capitalize()}\033[0m since \033[1m{self.delay}s\033[0m → turned \033[1moff\033[0m", icon={OFF_ICON})
+                self.adu.log(f"no motion in \033[1m{self.room.capitalize()}\033[0m since \033[1m{self.delay}s\033[0m → turned \033[1moff\033[0m", icon=OFF_ICON)
 
     def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
