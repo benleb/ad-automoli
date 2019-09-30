@@ -4,7 +4,7 @@
 """
 
 from pprint import pformat
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, Union
 
 
 class ADutils:
@@ -14,11 +14,15 @@ class ADutils:
         config: Dict[str, Any],
         icon: Optional[str] = None,
         ad: Any = None,
+        show_config: bool = False,
     ) -> None:
         self._name = name
         self.icon = icon
         self.config = config
         self.ad = ad
+
+        if show_config:
+            self.show_info()
 
     @property
     def appdaemon_v3(self) -> bool:
@@ -53,14 +57,16 @@ class ADutils:
 
         for key, value in self.config.items():
 
-            if key == "delay":
-                value = f"{int(value / 60)}:{int(value % 60):02d}min ≈ {value}sec"
+            # hide "internal keys" when displaying config
+            if key.startswith("_"):
+                continue
+
             if isinstance(value, list):
                 self.print_collection(key, value, 2)
             elif isinstance(value, dict):
                 self.print_collection(key, value, 4)
             else:
-                self.log(f"  {key}: \033[1m{value}\033[0m")
+                self._print_cfg_setting(key, value, 2)
 
         if listeners:
             self.log(f"  event listeners:")
@@ -80,14 +86,35 @@ class ADutils:
             indent = indentation * " "
 
             if isinstance(item, dict):
-
                 if "name" in item:
                     self.print_collection(item.pop("name", ""), item, indentation)
                 else:
                     self.log(f"{indent}\033[1m{pformat(item, compact=True)}\033[0m")
 
             elif isinstance(collection, dict):
-                self.log(f"{indent}{item}: \033[1m{collection[item]}\033[0m")
+                self._print_cfg_setting(item, collection[item], indentation)
 
             else:
                 self.log(f"{indent}- \033[1m{item}\033[0m")
+
+    def _print_cfg_setting(
+        self, key: str, value: Union[int, str], indentation: int
+    ) -> None:
+        unit = prefix = ""
+        indent = indentation * " "
+
+        # legacy way
+        if key == "delay" and isinstance(value, int):
+            unit = "min"
+            min_value = f"{int(value / 60)}:{int(value % 60):02d}"
+            self.log(
+                f"{indent}{key}: {prefix}\033[1m{min_value}\033[0m{unit} ≈ \033[1m{value}\033[0msec"
+            )
+
+        else:
+            if "_units" in self.config and key in self.config["_units"]:
+                unit = self.config["_units"][key]
+            if "_prefixes" in self.config and key in self.config["_prefixes"]:
+                prefix = self.config["_prefixes"][key]
+
+            self.log(f"{indent}{key}: {prefix}\033[1m{value}\033[0m{unit}")
