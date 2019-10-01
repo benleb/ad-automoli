@@ -70,7 +70,7 @@ class ADutils:
             if isinstance(value, list):
                 self.print_collection(key, value, 2)
             elif isinstance(value, dict):
-                self.print_collection(key, value, 4)
+                self.print_collection(key, value, 2)
             else:
                 self._print_cfg_setting(key, value, 2)
 
