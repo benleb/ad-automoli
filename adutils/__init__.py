@@ -51,14 +51,16 @@ class ADutils:
 
     def show_info(self) -> None:
         self.log("")
-        self.log(f"\033[1m{self.name}\033[0m", icon=self.icon)
+        room = "" if "room" not in self.config else f" - \033[1m{self.config['room'].capitalize()}\033[0m"
+        self.log(f"\033[1m{self.name}\033[0m{room}", icon=self.icon)
+        self.log("")
 
         listeners = self.config.pop("listeners", None)
 
         for key, value in self.config.items():
 
             # hide "internal keys" when displaying config
-            if key.startswith("_"):
+            if key in ["module", "class"] or key.startswith("_"):
                 continue
 
             if isinstance(value, list):
