@@ -50,8 +50,12 @@ class ADutils:
             print(f"Oh shit! Writing to AD logger failed: {error}")
 
     def show_info(self) -> None:
+        # check if a room is given
+        room = ""
+        if "room" in self.config:
+            room = f" - \033[1m{self.config['room'].capitalize()}\033[0m"
+
         self.log("")
-        room = "" if "room" not in self.config else f" - \033[1m{self.config['room'].capitalize()}\033[0m"
         self.log(f"\033[1m{self.name}\033[0m{room}", icon=self.icon)
         self.log("")
 
@@ -110,7 +114,8 @@ class ADutils:
             unit = "min"
             min_value = f"{int(value / 60)}:{int(value % 60):02d}"
             self.log(
-                f"{indent}{key}: {prefix}\033[1m{min_value}\033[0m{unit} ≈ \033[1m{value}\033[0msec"
+                f"{indent}{key}: {prefix}\033[1m{min_value}\033[0m{unit} ≈ "
+                f"\033[1m{value}\033[0msec"
             )
 
         else:
