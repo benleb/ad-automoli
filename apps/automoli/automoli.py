@@ -26,16 +26,15 @@ import sys
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional, Set, Union
 
-import appdaemon.plugins.hass.hassapi as hass
-
-from adutils import ADutils
+import adutils
+import hassapi as hass
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 APP_VERSION = "0.4.3"
 
 ON_ICON = APP_ICON
-OFF_ICON = "🤷‍♀️"
+OFF_ICON = "🌑"
 
 # default values
 DEFAULT_NAME = "daytime"
@@ -113,12 +112,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # self.log(daytime)
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
-            dt_is_hue_group = not str(dt_light_setting).startswith("scene.") and all(
+            dt_is_hue_group = isinstance(dt_light_setting, str) and not dt_light_setting.startswith("scene.") and any(
                 [
                     self.get_state(entity_id=entity, attribute="is_hue_group")
                     for entity in self.lights
                 ]
             )
+            # dt_is_hue_group = not str(dt_light_setting).startswith("scene.") and all(
+            #     [
+            #         self.get_state(entity_id=entity, attribute="is_hue_group")
+            #         for entity in self.lights
+            #     ]
+            # )
+
+            # self.log(f"str(dt_light_setting): {self.lights.pop()} {str(dt_light_setting)}")
+            # self.log(f"dt_is_hue_group: {dt_is_hue_group}")
 
             py37_or_higher = sys.version_info.major >= 3 and sys.version_info.minor >= 7
 
@@ -177,8 +185,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # display settings
         self.args.setdefault("listeners", self.sensors_motion)
-        self.adu = ADutils(APP_NAME, self.args, icon=APP_ICON, ad=self)
-        self.adu.show_info()
+
+        # init adutils
+        self.adu = adutils.ADutils(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
@@ -226,17 +235,35 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn on the lights."""
         if isinstance(self.active["light_setting"], str):
 
-            if self.active["is_hue_group"] is True:
-                for entity in self.lights:
+            for entity in self.lights:
+                if self.active["is_hue_group"] and self.get_state(entity_id=entity, attribute="is_hue_group"):
                     self.call_service(
                         "hue/hue_activate_scene",
                         group_name=self.friendly_name(entity),
                         scene_name=self.active["light_setting"],
                     )
-            else:
-                for entity in self.lights:
-                    item = entity if entity.startswith("switch.") else self.active["light_setting"]
-                    self.turn_on(item)
+                    continue
+
+                item = entity
+
+                if self.active["light_setting"].startswith("scene."):
+                    item = self.active["light_setting"]
+
+                self.turn_on(item)
+
+            # if self.active["is_hue_group"] is True:
+            #     for entity in self.lights:
+            #         self.call_service(
+            #             "hue/hue_activate_scene",
+            #             group_name=self.friendly_name(entity),
+            #             scene_name=self.active["light_setting"],
+            #         )
+            # else:
+            #     for entity in self.lights:
+            #         if entity.startswith("switch."):
+            #             self.turn_on(entity)
+            #         if self.active["light_setting"].startswith("scene."):
+            #             self.turn_on(self.active["light_setting"])
 
             self.adu.log(
                 f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → {'hue' if self.active['is_hue_group'] else 'ha'} scene: \033[1m{self.active['light_setting'].replace('scene.', '')}\033[0m",
@@ -245,14 +272,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         elif isinstance(self.active["light_setting"], int):
 
-            if self.active["light_setting"] != 0:
+            if self.active["light_setting"] == 0:
+                self.lights_off(dict())
+
+            else:
                 for entity in self.lights:
-                    if self.split_entity(entity)[0] == "switch":
+                    if entity.startswith("switch."):
                         self.turn_on(entity)
                     else:
                         self.turn_on(entity, brightness_pct=self.active["light_setting"])
                         self.adu.log(
-                            f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → brightness: \033[1m{self.active['light_setting']}\033[0m%",
+                            f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → brightness: \033[1m{self.active['light_setting']}%\033[0m",
                             icon=ON_ICON
                         )
 
