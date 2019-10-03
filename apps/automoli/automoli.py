@@ -35,6 +35,7 @@ APP_VERSION = "0.4.4"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
+DAYTIME_SWITCH_ICON = "⏰"
 
 # default values
 DEFAULT_NAME = "daytime"
@@ -196,8 +197,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if daytime is not None:
             self.active = daytime
             if not kwargs.get("initial"):
+
+                light_setting = daytime['light_setting']
+                if isinstance(light_setting, str):
+                    is_scene = True
+                    # if its a ha scene, remove the "scene." part
+                    if "." in light_setting:
+                        light_setting = (light_setting.split("."))[1]
+                else:
+                    is_scene = False
+
                 self.adu.log(
-                    f"Switched {self.room.capitalize()} to '{daytime['daytime']}', settings: {daytime['light_setting']}, {self.delay}s delay"
+                    f"set \033[1m{self.room.capitalize()}\033[0m to \033[1m{daytime['daytime']}\033[0m → "
+                    f"{'scene' if is_scene else 'brightness'}: \033[1m{light_setting}\033[0m"
+                    f"{'' if is_scene else '%'}, delay: \033[1m{self.delay}\033[0msec",
+                    icon=DAYTIME_SWITCH_ICON
                 )
 
     def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
@@ -306,7 +320,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if blocker:
             self.refresh_timer()
             self.adu.log(
-                f"🛁 no motion in \033[1m{self.room.capitalize()}\033[0m since \033[1m{self.delay}s\033[0m → humidity above threshold: {float(self.get_state(blocker))}% > {self.humidity_threshold})% → refreshing the timer"
+                f"🛁 no motion in \033[1m{self.room.capitalize()}\033[0m since "
+                f"\033[1m{self.delay}s\033[0m → but \033[1m{float(self.get_state(blocker))}%\033[0mRH > "
+                f"{self.humidity_threshold}%RH"
             )
         else:
             if any([self.get_state(entity) == "on" for entity in self.lights]):
