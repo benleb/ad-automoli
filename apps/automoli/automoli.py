@@ -1,25 +1,7 @@
-"""automatic motion lights.
+"""AutoMoLi.
+   Automatic Motion Lights
 
-  config example
-  all things can be omitted except the room and delay
-
-bathroom_lights:
-  module: automoli
-  class: AutoMoLi
-  room: bad
-  delay: 300
-  daytimes:
-    - { starttime: "05:30", name: morning, light: 45 }
-    - { starttime: "07:30", name: day, light: "Arbeiten" }
-    - { starttime: "20:30", name: evening, light: 90 }
-    - { starttime: "22:30", name: night, light: 0 }
-  humidity_threshold: 75
-  lights:
-    - light.bad
-  motion:
-    - binary_sensor.motion_sensor_158d000224f441
-  humidity:
-    - sensor.humidity_158d0001b95fb7
+  https://github.com/benleb/ad-automoli
 """
 
 import sys
