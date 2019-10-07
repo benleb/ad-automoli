@@ -1,17 +1,18 @@
 # AutoMoLi - **Auto**matic **Mo**tion **Li**ghts
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 
-**NEEDS THE APPDAEMON BETA OR DEV BRANCH! Current stable (v3.0.5) will not work!**
+**NEEDS THE APPDAEMON BETA OR DEV BRANCH! *Current stable (v3.0.5) will not work!***
 
-Fully automatic light management based on motion as [AppDaemon](https://github.com/home-assistant/appdaemon) app.  
+Fully *automatic light management* based on motion as [AppDaemon](https://github.com/home-assistant/appdaemon) app.  
 
 ## Features
 
 * multiple `daytimes` to define different scenes for morning, noon, ...
 * supports **Hue** (for Hue Rooms/Groups) & **Home Assistant** scenes
-* switches lights and plugs (with lights)
-* supports humidity sensor as blocker (the "*shower case*")
+* switches lights **and** plugs (with lights)
+* supports **illumination sensors** to switch the light just if needed
+* supports **humidity sensors** as blocker (the "*shower case*")
 
 ## Installation
 
@@ -19,10 +20,10 @@ Use [HACS](https://github.com/custom-components/hacs) or [download](https://gith
 
 ## Requirements/Usage
 
-*some things are not yet documented here but the code is commented*
+### *some things are not yet documented here but the code is commented*
 
-* This must be loaded/configured for every 'room' separately, see example configuration.
-* if sensors/lights entities are in this form *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. Manually configured entities have precedence.
+* This must be loaded/configured for every **`room`** separately, see example configuration.
+* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. Manually configured entities have precedence.
 
 ## App configuration
 
@@ -31,6 +32,7 @@ livingroom:
   module: automoli
   class: AutoMoLi
   room: livingroom
+  disable_switch_entity: input_boolean.automoli
   delay: 600
   daytimes:
     - { starttime: "05:30", name: morning, light: "Morning" }
@@ -38,7 +40,7 @@ livingroom:
     - { starttime: "20:30", name: evening, light: 90 }
     - { starttime: "22:30", name: night, light: 20 }
     - { starttime: "23:30", name: more_night, light: 0 }
-  humidity_threshold: 75
+  illuminance_threshold: 100
   lights:
     - light.livingroom
   motion:
@@ -51,12 +53,14 @@ bathroom:
   module: automoli
   class: AutoMoLi
   room: bathroom
+  disable_switch_entity: input_boolean.automoli
   delay: 180
   daytimes:
     - { starttime: "05:30", name: morning, light: 45 }
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
     - { starttime: "22:30", name: night, light: 0 }
+  humidity_threshold: 75
   lights:
     - light.bathroom
     - switch.plug_68fe8b4c9fa1
@@ -69,14 +73,18 @@ key | optional | type | default | description
 `module` | False | string | automoli | The module name of the app.
 `class` | False | string | AutoMoLi | The name of the Class.
 `room` | False | string | | The "room" used to find matching sensors/light
+`disable_switch_entity` | True | str | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
 `lights` | True | list/string | *auto detect* | Light entities
 `motion` | True | list/string | *auto detect* | Motion sensor entities
+`illuminance` | True | list/string |  | Illuminance sensor entities
+`illuminance_threshold` | True | integer |  | If illuminance is *above* this value, lights will *not switched on*
 `humidity` | True | list/string |  | Humidity sensor entities
-`humidity_threshold` | True | integer |  | If humidity is above this value, lights will not switched off
+`humidity_threshold` | True | integer |  | If humidity is *above* this value, lights will *not switched off*
 
-#### daytimes
+### daytimes
+
 key | optional | type | default | description
 -- | -- | -- | -- | --
 `starttime` | False | string | | Time this daytime starts
