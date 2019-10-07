@@ -48,8 +48,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # devices
         self.lights: Set[str] = self.args.get("lights", set())
         self.sensors_motion: Set[str] = self.args.get("motion", set())
-        self.sensors_illuminance: Set[str] = self.args.get("illuminance", set())
-        self.sensors_humidity: Set[str] = self.args.get("humidity", set())
+        self.sensors_illuminance: Set[str] = self.args.pop("illuminance", set())
+        self.sensors_humidity: Set[str] = self.args.pop("humidity", set())
         # device config
         self.illuminance_threshold: Optional[int] = self.args.get("illuminance_threshold")
         self.humidity_threshold: Optional[int] = self.args.get("humidity_threshold")
@@ -97,7 +97,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if not self.sensors_illuminance:
                 self.log(
-                    f"No illuminance sensors given or found ('{KEYWORD_SENSORS_ILLUMINANCE}') → disabling humidity threshold blocker."
+                    f"No illuminance sensors given or found ('{KEYWORD_SENSORS_ILLUMINANCE}') → disabling illuminance threshold."
                 )
                 self.illuminance_threshold = None
 
@@ -243,7 +243,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if float(self.get_state(sensor)) >= self.illuminance_threshold
             ]
             if blocker:
-                self.adu.log(f"zu hell: {blocker}")
+                self.adu.log(f"According to  \033[1m{blocker}\033[0m its already bright enough")
                 return
 
         if isinstance(self.active["light_setting"], str):
