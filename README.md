@@ -60,6 +60,8 @@ bathroom:
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
     - { starttime: "22:30", name: night, light: 0 }
+  humidity:
+    - sensor.humidity_128d4101b95fb7
   humidity_threshold: 75
   lights:
     - light.bathroom
