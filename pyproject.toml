@@ -16,7 +16,7 @@ keywords = ["appdaemon", "app"]
 
 classifiers = [
     "Topic :: Software Development"
-    "Intended Audience :: Developers',
+    "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.7",
@@ -33,8 +33,8 @@ requires = ["setuptools", "wheel"]
 
 [tool.black]
 line-length = 88
-target_version = ['py37']
-include = '\.pyi?$'
+target_version = ["py37"]
+include = "\.pyi?$"
 exclude = '''
 
 (
