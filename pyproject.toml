@@ -15,7 +15,7 @@ documentation = "https://github.com/benleb/adutils"
 keywords = ["appdaemon", "app"]
 
 classifiers = [
-    "Topic :: Software Development"
+    "Topic :: Software Development",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
@@ -30,11 +30,13 @@ classifiers = [
 
 [build-system]
 requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 
 [tool.black]
 line-length = 88
 target_version = ["py37"]
-include = "\.pyi?$"
+include = '\.pyi?$'
 exclude = '''
 
 (
