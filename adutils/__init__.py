@@ -103,6 +103,10 @@ class ADutils:
             else:
                 self.log(f"{indent}- \033[1m{item}\033[0m")
 
+    @staticmethod
+    def hl(text: str) -> str:
+        return f"\033[1m{text}\033[0m"
+
     def _print_cfg_setting(
         self, key: str, value: Union[int, str], indentation: int
     ) -> None:
