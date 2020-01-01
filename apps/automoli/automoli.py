@@ -17,7 +17,7 @@ except ImportError:
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.4.6"
+APP_VERSION = "0.4.7"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
