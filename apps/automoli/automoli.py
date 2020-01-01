@@ -8,8 +8,12 @@ import sys
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional, Set, Union
 
-import adutils
-import hassapi as hass
+from apps.automoli.adutils import adutils
+
+try:
+    import hassapi as hass
+except ImportError:
+    import appdaemon.plugins.hass.hassapi as hass
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
