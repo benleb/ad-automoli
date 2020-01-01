@@ -30,7 +30,7 @@ DEFAULT_DAYTIMES = [
     dict(start="22:30", name="night", light=0),
 ]
 
-EVENT_MOTION = "xiaomi_aqara.motion"
+EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
 
 KEYWORD_LIGHTS = "light."
 KEYWORD_SENSORS = "binary_sensor.motion_sensor_"
@@ -45,6 +45,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Initialize a room with AutoMoLi."""
         self.room = str(self.args.get("room"))
         self.delay = int(self.args.get("delay", DEFAULT_DELAY))
+        self.event_motion = self.args.get("motion_event", None)
         # devices
         self.lights: Set[str] = self.args.get("lights", set())
         self.sensors_motion: Set[str] = self.args.get("motion", set())
@@ -167,7 +168,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # set up event listener for each sensor
         for sensor in self.sensors_motion:
-            self.listen_event(self.motion_event, event=EVENT_MOTION, entity_id=sensor)
+            # listen to xiaomi sensors by default
+            self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
+
+            if self.event_motion:
+                self.listen_event(self.motion_event, event=self.event_motion, entity_id=sensor)
 
         # start timer on appdaemon start
         self.refresh_timer()
