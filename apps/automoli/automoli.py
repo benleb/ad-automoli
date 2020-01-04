@@ -8,7 +8,7 @@ import sys
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional, Set, Union
 
-from apps.automoli.adutils import adutils
+from adutils import ADutils as adu
 
 try:
     import hassapi as hass
@@ -187,7 +187,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.args.setdefault("sensors_humidity", list(self.sensors_humidity)) if self.sensors_humidity else None
 
         # init adutils
-        self.adu = adutils.ADutils(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
+        self.adu = adu(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
