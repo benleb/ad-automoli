@@ -1,6 +1,6 @@
 [project]
 name = "adutils"
-version = "0.4.2"
+version = "0.4.6"
 description = "Helper and utilities for AppDaemon apps."
 authors = [
     "Ben Lebherz <git@benleb.de>"

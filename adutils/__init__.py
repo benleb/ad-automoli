@@ -107,6 +107,11 @@ class ADutils:
     def hl(text: str) -> str:
         return f"\033[1m{text}\033[0m"
 
+    @staticmethod
+    def hl_entity(entity: str) -> str:
+        domain, entity = entity.split(".")
+        return f"{domain}.{ADutils.hl(entity)}"
+
     def _print_cfg_setting(
         self, key: str, value: Union[int, str], indentation: int
     ) -> None:
