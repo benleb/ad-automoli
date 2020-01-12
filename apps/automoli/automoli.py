@@ -2,18 +2,35 @@
    Automatic Motion Lights
 
   https://github.com/benleb/ad-automoli
+
+  config example
+  all things can be omitted except the room and delay
+
+bathroom_lights:
+  module: automoli
+  class: AutoMoLi
+  room: bad
+  delay: 300
+  daytimes:
+    - { starttime: "05:30", name: morning, light: 45 }
+    - { starttime: "07:30", name: day, light: "Arbeiten" }
+    - { starttime: "20:30", name: evening, light: 90 }
+    - { starttime: "22:30", name: night, light: 0 }
+  humidity_threshold: 75
+  lights:
+    - light.bad
+  motion:
+    - binary_sensor.motion_sensor_158d000224f441
+  humidity:
+    - sensor.humidity_158d0001b95fb7
 """
 
 import sys
-from datetime import datetime, time
+from datetime import time
 from typing import Any, Dict, List, Optional, Set, Union
 
-from adutils import ADutils as adu
-
-try:
-    import hassapi as hass
-except ImportError:
-    import appdaemon.plugins.hass.hassapi as hass
+from adutils import ADutils, hl
+import hassapi as hass
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
@@ -45,14 +62,14 @@ KEYWORD_SENSORS_ILLUMINANCE = "sensor.illumination_"
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
         self.room = str(self.args.get("room"))
         self.delay = int(self.args.get("delay", DEFAULT_DELAY))
         self.event_motion = self.args.get("motion_event", None)
         # devices
         self.lights: Set[str] = self.args.get("lights", set())
-        self.sensors_motion: Set[str] = self.args.get("motion", set())
+        self.sensors_motion: Set[str] = self.args.pop("motion", set())
         self.sensors_illuminance: Set[str] = self.args.pop("illuminance", set())
         self.sensors_humidity: Set[str] = self.args.pop("humidity", set())
         # device config
@@ -71,20 +88,20 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # define light entities switched by automoli
         if self.lights:
             self.lights = set(self.lights)
-        elif self.entity_exists(f"light.{self.room}"):
+        elif await self.entity_exists(f"light.{self.room}"):
             self.lights.update([f"light.{self.room}"])
         else:
-            self.lights.update(self.find_sensors(KEYWORD_LIGHTS))
+            self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
 
         # define sensor entities monitored by automoli
         if not self.sensors_motion:
-            self.sensors_motion.update(self.find_sensors(KEYWORD_SENSORS))
+            self.sensors_motion.update(await self.find_sensors(KEYWORD_SENSORS))
 
         # enumerate humidity sensors if threshold given
         if self.humidity_threshold:
             if not self.sensors_humidity:
                 self.sensors_humidity.update(
-                    self.find_sensors(KEYWORD_SENSORS_HUMIDITY)
+                    await self.find_sensors(KEYWORD_SENSORS_HUMIDITY)
                 )
 
             if not self.sensors_humidity:
@@ -97,12 +114,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if self.illuminance_threshold:
             if not self.sensors_illuminance:
                 self.sensors_illuminance.update(
-                    self.find_sensors(KEYWORD_SENSORS_ILLUMINANCE)
+                    await self.find_sensors(KEYWORD_SENSORS_ILLUMINANCE)
                 )
 
             if not self.sensors_illuminance:
                 self.log(
-                    f"No illuminance sensors given or found ('{KEYWORD_SENSORS_ILLUMINANCE}') → disabling illuminance threshold."
+                    f"No illuminance sensors given or found ('{KEYWORD_SENSORS_ILLUMINANCE}') → disabling illuminance threshold blocker."
                 )
                 self.illuminance_threshold = None
 
@@ -129,7 +146,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if py37_or_higher:
                     dt_start = time.fromisoformat(str(daytime.get("starttime")))
                 else:
-                    dt_start = datetime.strptime(
+                    dt_start = self.datetime.strptime(
                         str(daytime.get("starttime")), "%H:%M"
                     ).time()
             except ValueError as verror:
@@ -150,7 +167,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
                 )
             else:
-                next_dt_start = datetime.strptime(
+                next_dt_start = self.datetime.strptime(
                     str(daytimes[(idx + 1) % len(daytimes)].get("starttime")), "%H:%M"
                 ).time()
 
@@ -163,7 +180,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             starttimes.add(dt_start)
 
             # check if this daytime should ne active now
-            if self.now_is_between(str(dt_start), str(next_dt_start)):
+            if await self.now_is_between(str(dt_start), str(next_dt_start)):
                 self.switch_daytime(dict(daytime=daytime, initial=True))
                 self.args["active_daytime"] = daytime.get("daytime")
 
@@ -174,7 +191,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for sensor in self.sensors_motion:
             # listen to xiaomi sensors by default
             self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
-
             if self.event_motion:
                 self.listen_event(self.motion_event, event=self.event_motion, entity_id=sensor)
 
@@ -187,7 +203,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.args.setdefault("sensors_humidity", list(self.sensors_humidity)) if self.sensors_humidity else None
 
         # init adutils
-        self.adu = adu(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
+        self.adu = ADutils(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
@@ -207,9 +223,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     is_scene = False
 
                 self.adu.log(
-                    f"set \033[1m{self.room.capitalize()}\033[0m to \033[1m{daytime['daytime']}\033[0m → "
-                    f"{'scene' if is_scene else 'brightness'}: \033[1m{light_setting}\033[0m"
-                    f"{'' if is_scene else '%'}, delay: \033[1m{self.delay}\033[0msec",
+                    f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
+                    f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
+                    f"{'' if is_scene else '%'}, delay: {hl(self.delay)}sec",
                     icon=DAYTIME_SWITCH_ICON
                 )
 
@@ -252,7 +268,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if float(self.get_state(sensor)) >= self.illuminance_threshold
             ]
             if blocker:
-                self.adu.log(f"According to  \033[1m{blocker}\033[0m its already bright enough")
+                self.adu.log(f"According to {hl(' '.join(blocker))} its already bright enough")
                 return
 
         if isinstance(self.active["light_setting"], str):
@@ -274,7 +290,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.turn_on(item)
 
             self.adu.log(
-                f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → {'hue' if self.active['is_hue_group'] else 'ha'} scene: \033[1m{self.active['light_setting'].replace('scene.', '')}\033[0m",
+                f"{hl(self.room.capitalize())} turned \033[1mon\033[0m → {'hue' if self.active['is_hue_group'] else 'ha'} scene: {hl(self.active['light_setting'].replace('scene.', ''))}",
                 icon=ON_ICON
             )
 
@@ -290,7 +306,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     else:
                         self.turn_on(entity, brightness_pct=self.active["light_setting"])
                         self.adu.log(
-                            f"\033[1m{self.room.capitalize()}\033[0m turned \033[1mon\033[0m → brightness: \033[1m{self.active['light_setting']}%\033[0m",
+                            f"{hl(self.room.capitalize())} turned \033[1mon\033[0m → brightness: {hl(self.active['light_setting'])}%",
                             icon=ON_ICON
                         )
 
@@ -314,22 +330,35 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if blocker:
             self.refresh_timer()
             self.adu.log(
-                f"🛁 no motion in \033[1m{self.room.capitalize()}\033[0m since "
-                f"\033[1m{self.delay}s\033[0m → but \033[1m{float(self.get_state(blocker))}%\033[0mRH > "
+                f"🛁 no motion in {hl(self.room.capitalize())} since "
+                f"{hl(self.delay)}s → but {hl(float(self.get_state(blocker)))}%RH > "
                 f"{self.humidity_threshold}%RH"
             )
         else:
             self.cancel_timer(self._handle)
-            if any([self.get_state(entity) == "on" for entity in self.lights]):
+            if any([(self.get_state(entity)) == "on" for entity in self.lights]):
                 for entity in self.lights:
                     self.turn_off(entity)
-                self.adu.log(f"no motion in \033[1m{self.room.capitalize()}\033[0m since \033[1m{self.delay}s\033[0m → turned \033[1moff\033[0m", icon=OFF_ICON)
+                self.adu.log(f"no motion in {hl(self.room.capitalize())} since {hl(self.delay)}s → turned {hl(f'off')}", icon=OFF_ICON)
 
-    def find_sensors(self, keyword: str) -> List[str]:
+    async def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
         return [
             sensor
-            for sensor in self.get_state()
+            for sensor in await self.get_state()
             if keyword in sensor and
-            self.room in self.friendly_name(sensor).lower().replace("ü", "u")
+            self.room in (await self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
+
+    @staticmethod
+    def single_item(settings_list: List[str]) -> Optional[str]:
+        """Convert list item to str if len(list) == 1 else joins the list."""
+        return (
+            (
+                f", ".join(settings_list)
+                if len(settings_list) > 1
+                else list(settings_list)[0]
+            )
+            if settings_list
+            else None
+        )
