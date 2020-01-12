@@ -324,8 +324,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.turn_on(item)
 
             self.adu.log(
-                f"{hl(self.room.capitalize())} turned {hl(f'on')} → ",
-                f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: ",
+                f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
+                f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: "
                 f"{hl(self.active['light_setting'].replace('scene.', ''))}",
                 icon=ON_ICON,
             )
@@ -344,15 +344,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                             entity, brightness_pct=self.active["light_setting"]
                         )
                         self.adu.log(
-                            f"{hl(self.room.capitalize())} turned {hl(f'on')} → ",
+                            f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                             f"brightness: {hl(self.active['light_setting'])}%",
                             icon=ON_ICON,
                         )
 
         else:
             raise ValueError(
-                f"invalid brightness/scene: {self.active['light_setting']!s} ",
-                f"in {self.room}",
+                f"invalid brightness/scene: {self.active['light_setting']!s} "
+                f"in {self.room}"
             )
 
     def lights_off(self, kwargs: Dict[str, Any]) -> None:
@@ -381,7 +381,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 for entity in self.lights:
                     self.turn_off(entity)
                 self.adu.log(
-                    f"no motion in {hl(self.room.capitalize())} since ",
+                    f"no motion in {hl(self.room.capitalize())} since "
                     f"{hl(self.delay)}s → turned {hl(f'off')}",
                     icon=OFF_ICON,
                 )
