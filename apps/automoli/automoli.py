@@ -73,13 +73,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.sensors_illuminance: Set[str] = self.args.pop("illuminance", set())
         self.sensors_humidity: Set[str] = self.args.pop("humidity", set())
         # device config
-        self.illuminance_threshold: Optional[int] = self.args.get("illuminance_threshold")
+        self.illuminance_threshold: Optional[int] = self.args.get(
+            "illuminance_threshold"
+        )
         self.humidity_threshold: Optional[int] = self.args.get("humidity_threshold")
 
         # on/off switch via input.boolean
         self.disable_switch_entity = self.args.get("disable_switch_entity")
 
-        daytimes: List[Dict[str, Union[int, str]]] = self.args.get("daytimes", DEFAULT_DAYTIMES)
+        daytimes: List[Dict[str, Union[int, str]]] = self.args.get(
+            "daytimes", DEFAULT_DAYTIMES
+        )
         starttimes: Set[time] = set()
 
         self.active: Dict[str, Union[int, str]] = {}
@@ -106,7 +110,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if not self.sensors_humidity:
                 self.log(
-                    f"No humidity sensors given or found ('{KEYWORD_SENSORS_HUMIDITY}') → disabling humidity threshold blocker."
+                    f"No humidity sensors given/found ('{KEYWORD_SENSORS_HUMIDITY}') ",
+                    f"→ disabling humidity threshold blocker.",
                 )
                 self.humidity_threshold = None
 
@@ -119,7 +124,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if not self.sensors_illuminance:
                 self.log(
-                    f"No illuminance sensors given or found ('{KEYWORD_SENSORS_ILLUMINANCE}') → disabling illuminance threshold blocker."
+                    f"No illuminance sensors given/found ",
+                    f"('{KEYWORD_SENSORS_ILLUMINANCE}') → ",
+                    f"disabling illuminance threshold blocker.",
                 )
                 self.illuminance_threshold = None
 
@@ -132,11 +139,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for idx, daytime in enumerate(daytimes):
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
-            dt_is_hue_group = isinstance(dt_light_setting, str) and not dt_light_setting.startswith("scene.") and any(
-                [
-                    self.get_state(entity_id=entity, attribute="is_hue_group")
-                    for entity in self.lights
-                ]
+            dt_is_hue_group = (
+                isinstance(dt_light_setting, str)
+                and not dt_light_setting.startswith("scene.")
+                and any(
+                    [
+                        self.get_state(entity_id=entity, attribute="is_hue_group")
+                        for entity in self.lights
+                    ]
+                )
             )
 
             py37_or_higher = sys.version_info.major >= 3 and sys.version_info.minor >= 7
@@ -174,7 +185,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # collect all start times for sanity check
             if dt_start in starttimes:
                 raise ValueError(
-                    f"Start times of all daytimes have to be unique! Duplicate found: {dt_start}"
+                    f"Start times of all daytimes have to be unique! ",
+                    f"Duplicate found: {dt_start}",
                 )
 
             starttimes.add(dt_start)
@@ -185,25 +197,37 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.args["active_daytime"] = daytime.get("daytime")
 
             # schedule callbacks for daytime switching
-            self.run_daily(self.switch_daytime, dt_start, random_start=-10, **dict(daytime=daytime))
+            self.run_daily(
+                self.switch_daytime, dt_start, random_start=-10, **dict(daytime=daytime)
+            )
 
         # set up event listener for each sensor
         for sensor in self.sensors_motion:
             # listen to xiaomi sensors by default
-            self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
+            self.listen_event(
+                self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor
+            )
             if self.event_motion:
-                self.listen_event(self.motion_event, event=self.event_motion, entity_id=sensor)
+                self.listen_event(
+                    self.motion_event, event=self.event_motion, entity_id=sensor
+                )
 
         # start timer on appdaemon start
         self.refresh_timer()
 
         # display settings
         self.args.setdefault("listeners", self.sensors_motion)
-        self.args.setdefault("sensors_illuminance", list(self.sensors_illuminance)) if self.sensors_illuminance else None
-        self.args.setdefault("sensors_humidity", list(self.sensors_humidity)) if self.sensors_humidity else None
+        self.args.setdefault(
+            "sensors_illuminance", list(self.sensors_illuminance)
+        ) if self.sensors_illuminance else None
+        self.args.setdefault(
+            "sensors_humidity", list(self.sensors_humidity)
+        ) if self.sensors_humidity else None
 
         # init adutils
-        self.adu = ADutils(APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True)
+        self.adu = ADutils(
+            APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True
+        )
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
@@ -213,7 +237,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.active = daytime
             if not kwargs.get("initial"):
 
-                light_setting = daytime['light_setting']
+                light_setting = daytime["light_setting"]
                 if isinstance(light_setting, str):
                     is_scene = True
                     # if its a ha scene, remove the "scene." part
@@ -226,21 +250,25 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
                     f"{'' if is_scene else '%'}, delay: {hl(self.delay)}sec",
-                    icon=DAYTIME_SWITCH_ICON
+                    icon=DAYTIME_SWITCH_ICON,
                 )
 
-    def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
+    def motion_event(
+        self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]
+    ) -> None:
         """Handle motion events."""
         self.adu.log(
-            f"received '{event}' event from '{data['entity_id'].replace(KEYWORD_SENSORS, '')}'",
-            level="DEBUG"
+            f"received '{event}' event from ",
+            f"'{data['entity_id'].replace(KEYWORD_SENSORS, '')}'",
+            level="DEBUG",
         )
 
         # check if automoli is disabled via home assistant entity
         automoli_state = self.get_state(self.disable_switch_entity)
         if automoli_state == "off":
             self.adu.log(
-                f"automoli is disabled via {self.disable_switch_entity} (state: {automoli_state})'"
+                f"automoli is disabled via {self.disable_switch_entity} ",
+                f"(state: {automoli_state})'",
             )
             return
 
@@ -249,8 +277,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lights_on()
         else:
             self.adu.log(
-                f"light in {self.room.capitalize()} already on → refreshing the timer",
-                level="DEBUG"
+                f"light in {self.room.capitalize()} already on → ",
+                f"refreshing the timer",
+                level="DEBUG",
             )
 
         self.refresh_timer()
@@ -264,17 +293,22 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn on the lights."""
         if self.illuminance_threshold:
             blocker = [
-                sensor for sensor in self.sensors_illuminance
+                sensor
+                for sensor in self.sensors_illuminance
                 if float(self.get_state(sensor)) >= self.illuminance_threshold
             ]
             if blocker:
-                self.adu.log(f"According to {hl(' '.join(blocker))} its already bright enough")
+                self.adu.log(
+                    f"According to {hl(' '.join(blocker))} its already bright enough"
+                )
                 return
 
         if isinstance(self.active["light_setting"], str):
 
             for entity in self.lights:
-                if self.active["is_hue_group"] and self.get_state(entity_id=entity, attribute="is_hue_group"):
+                if self.active["is_hue_group"] and self.get_state(
+                    entity_id=entity, attribute="is_hue_group"
+                ):
                     self.call_service(
                         "hue/hue_activate_scene",
                         group_name=self.friendly_name(entity),
@@ -290,8 +324,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.turn_on(item)
 
             self.adu.log(
-                f"{hl(self.room.capitalize())} turned \033[1mon\033[0m → {'hue' if self.active['is_hue_group'] else 'ha'} scene: {hl(self.active['light_setting'].replace('scene.', ''))}",
-                icon=ON_ICON
+                f"{hl(self.room.capitalize())} turned {hl(f'on')} → ",
+                f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: ",
+                f"{hl(self.active['light_setting'].replace('scene.', ''))}",
+                icon=ON_ICON,
             )
 
         elif isinstance(self.active["light_setting"], int):
@@ -304,15 +340,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     if entity.startswith("switch."):
                         self.turn_on(entity)
                     else:
-                        self.turn_on(entity, brightness_pct=self.active["light_setting"])
+                        self.turn_on(
+                            entity, brightness_pct=self.active["light_setting"]
+                        )
                         self.adu.log(
-                            f"{hl(self.room.capitalize())} turned \033[1mon\033[0m → brightness: {hl(self.active['light_setting'])}%",
-                            icon=ON_ICON
+                            f"{hl(self.room.capitalize())} turned {hl(f'on')} → ",
+                            f"brightness: {hl(self.active['light_setting'])}%",
+                            icon=ON_ICON,
                         )
 
         else:
             raise ValueError(
-                f"invalid brightness/scene: {self.active['light_setting']!s} in {self.room}"
+                f"invalid brightness/scene: {self.active['light_setting']!s} ",
+                f"in {self.room}",
             )
 
     def lights_off(self, kwargs: Dict[str, Any]) -> None:
@@ -321,7 +361,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         if self.humidity_threshold:
             blocker = [
-                sensor for sensor in self.sensors_humidity
+                sensor
+                for sensor in self.sensors_humidity
                 if float(self.get_state(sensor)) >= self.humidity_threshold
             ]
             blocker = blocker.pop() if blocker else None
@@ -339,15 +380,20 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if any([(self.get_state(entity)) == "on" for entity in self.lights]):
                 for entity in self.lights:
                     self.turn_off(entity)
-                self.adu.log(f"no motion in {hl(self.room.capitalize())} since {hl(self.delay)}s → turned {hl(f'off')}", icon=OFF_ICON)
+                self.adu.log(
+                    f"no motion in {hl(self.room.capitalize())} since ",
+                    f"{hl(self.delay)}s → turned {hl(f'off')}",
+                    icon=OFF_ICON,
+                )
 
     async def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
         return [
             sensor
             for sensor in await self.get_state()
-            if keyword in sensor and
-            self.room in (await self.friendly_name(sensor)).lower().replace("ü", "u")
+            if keyword in sensor
+            and self.room
+            in (await self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
 
     @staticmethod
