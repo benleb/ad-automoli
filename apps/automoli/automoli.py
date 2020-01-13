@@ -45,10 +45,10 @@ DEFAULT_NAME = "daytime"
 DEFAULT_LIGHT_SETTING = 100
 DEFAULT_DELAY = 150
 DEFAULT_DAYTIMES = [
-    dict(start="05:30", name="morning", light=0),
-    dict(start="07:30", name="day", light="Arbeiten"),
-    dict(start="20:30", name="evening", light=90),
-    dict(start="22:30", name="night", light=0),
+    dict(starttime="05:30", name="morning", light=25),
+    dict(starttime="07:30", name="day", light=100),
+    dict(starttime="20:30", name="evening", light=90),
+    dict(starttime="22:30", name="night", light=0),
 ]
 
 EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
@@ -81,9 +81,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # on/off switch via input.boolean
         self.disable_switch_entity = self.args.get("disable_switch_entity")
 
-        daytimes: List[Dict[str, Union[int, str]]] = self.args.get(
-            "daytimes", DEFAULT_DAYTIMES
-        )
+        # needs python 3.8!
+        if not (daytimes := self.args.get("daytimes")):
+            self.args["daytimes"] = daytimes = DEFAULT_DAYTIMES
+
         starttimes: Set[time] = set()
 
         self.active: Dict[str, Union[int, str]] = {}
