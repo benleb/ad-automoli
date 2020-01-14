@@ -62,7 +62,7 @@ KEYWORD_SENSORS_ILLUMINANCE = "sensor.illumination_"
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
         self.room = str(self.args.get("room"))
         self.delay = int(self.args.get("delay", DEFAULT_DELAY))
@@ -93,20 +93,20 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # define light entities switched by automoli
         if self.lights:
             self.lights = set(self.lights)
-        elif await self.entity_exists(f"light.{self.room}"):
+        elif self.entity_exists(f"light.{self.room}"):
             self.lights.update([f"light.{self.room}"])
         else:
-            self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
+            self.lights.update(self.find_sensors(KEYWORD_LIGHTS))
 
         # define sensor entities monitored by automoli
         if not self.sensors_motion:
-            self.sensors_motion.update(await self.find_sensors(KEYWORD_SENSORS))
+            self.sensors_motion.update(self.find_sensors(KEYWORD_SENSORS))
 
         # enumerate humidity sensors if threshold given
         if self.humidity_threshold:
             if not self.sensors_humidity:
                 self.sensors_humidity.update(
-                    await self.find_sensors(KEYWORD_SENSORS_HUMIDITY)
+                    self.find_sensors(KEYWORD_SENSORS_HUMIDITY)
                 )
 
             if not self.sensors_humidity:
@@ -120,7 +120,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if self.illuminance_threshold:
             if not self.sensors_illuminance:
                 self.sensors_illuminance.update(
-                    await self.find_sensors(KEYWORD_SENSORS_ILLUMINANCE)
+                    self.find_sensors(KEYWORD_SENSORS_ILLUMINANCE)
                 )
 
             if not self.sensors_illuminance:
@@ -193,7 +193,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             starttimes.add(dt_start)
 
             # check if this daytime should ne active now
-            if await self.now_is_between(str(dt_start), str(next_dt_start)):
+            if self.now_is_between(str(dt_start), str(next_dt_start)):
                 self.switch_daytime(dict(daytime=daytime, initial=True))
                 self.args["active_daytime"] = daytime.get("daytime")
 
@@ -387,14 +387,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     icon=OFF_ICON,
                 )
 
-    async def find_sensors(self, keyword: str) -> List[str]:
+    def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
         return [
             sensor
-            for sensor in await self.get_state()
+            for sensor in self.get_state()
             if keyword in sensor
             and self.room
-            in (await self.friendly_name(sensor)).lower().replace("ü", "u")
+            in (self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
 
     @staticmethod
