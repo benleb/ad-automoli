@@ -399,6 +399,5 @@ class AutoMoLi(hass.Hass):  # type: ignore
             sensor
             for sensor in self.get_state()
             if keyword in sensor
-            and self.room
-            in (self.friendly_name(sensor)).lower().replace("ü", "u")
+            and self.room in (self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
