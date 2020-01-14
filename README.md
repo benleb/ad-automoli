@@ -2,8 +2,6 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 
-**NEEDS THE APPDAEMON BETA OR DEV BRANCH! *Current stable (v3.0.5) will not work!***
-
 Fully *automatic light management* based on motion as [AppDaemon](https://github.com/home-assistant/appdaemon) app.  
 
 ## Features
