@@ -402,16 +402,3 @@ class AutoMoLi(hass.Hass):  # type: ignore
             and self.room
             in (self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
-
-    @staticmethod
-    def single_item(settings_list: List[str]) -> Optional[str]:
-        """Convert list item to str if len(list) == 1 else joins the list."""
-        return (
-            (
-                f", ".join(settings_list)
-                if len(settings_list) > 1
-                else list(settings_list)[0]
-            )
-            if settings_list
-            else None
-        )
