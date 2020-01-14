@@ -86,8 +86,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             "daytimes", DEFAULT_DAYTIMES
         )
 
-        starttimes: Set[time] = set()
-
+        # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
         self._handle = None
 
@@ -138,6 +137,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         elif not self.lights:
             raise ValueError(f"No sensors given/found, sorry! ('{KEYWORD_LIGHTS}')")
 
+        starttimes: Set[time] = set()
+
+        # build daytimes dict
         for idx, daytime in enumerate(daytimes):
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
@@ -309,6 +311,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if isinstance(self.active["light_setting"], str):
 
             for entity in self.lights:
+                if entity.startswith("switch."):
+                    self.turn_on(entity)
                 if self.active["is_hue_group"] and self.get_state(
                     entity_id=entity, attribute="is_hue_group"
                 ):
