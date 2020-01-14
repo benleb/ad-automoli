@@ -81,9 +81,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # on/off switch via input.boolean
         self.disable_switch_entity = self.args.get("disable_switch_entity")
 
-        # needs python 3.8!
-        if not (daytimes := self.args.get("daytimes")):
-            self.args["daytimes"] = daytimes = DEFAULT_DAYTIMES
+        # use user-defined daytimes if available
+        daytimes: List[Dict[str, Union[int, str]]] = self.args.get(
+            "daytimes", DEFAULT_DAYTIMES
+        )
 
         starttimes: Set[time] = set()
 
@@ -224,6 +225,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.args.setdefault(
             "sensors_humidity", list(self.sensors_humidity)
         ) if self.sensors_humidity else None
+        self.args["daytimes"] = daytimes
 
         # init adutils
         self.adu = ADutils(
