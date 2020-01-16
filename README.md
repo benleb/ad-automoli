@@ -76,7 +76,7 @@ key | optional | type | default | description
 `room` | False | string | | The "room" used to find matching sensors/light
 `disable_switch_entity` | True | str | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off
-`motion_event` | True | string | | Name of an additional motion event AutoMoLi should listen for
+`motion_event` | True | string | | Name of an additional motion event AutoMoLi should listen for e.g. "state_changed". (This will enable also other binary sensors to be recognized like Fibaro or other Z-Wave / Zigbee devices)
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
 `lights` | True | list/string | *auto detect* | Light entities
 `motion` | True | list/string | *auto detect* | Motion sensor entities
