@@ -53,7 +53,8 @@ bathroom:
   room: bathroom
   disable_switch_entity: input_boolean.automoli
   delay: 180
-  motion_event: state_changed
+  motion_state_on: "on"
+  motion_state_off: "off"
   daytimes:
     - { starttime: "05:30", name: morning, light: 45 }
     - { starttime: "07:30", name: day, light: "Day" }
