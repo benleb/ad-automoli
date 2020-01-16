@@ -76,7 +76,7 @@ key | optional | type | default | description
 `room` | False | string | | The "room" used to find matching sensors/light
 `disable_switch_entity` | True | str | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off
-`motion_event` | True | string | | Name of an additional motion event AutoMoLi should listen for e.g. "state_changed". (This will enable also other binary sensors to be recognized like Fibaro or other Z-Wave / Zigbee devices)
+`motion_event` | True | string | | *Please update your config to use **motion_state_on/off***
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
 `lights` | True | list/string | *auto detect* | Light entities
 `motion` | True | list/string | *auto detect* | Motion sensor entities
@@ -84,8 +84,9 @@ key | optional | type | default | description
 `illuminance_threshold` | True | integer |  | If illuminance is *above* this value, lights will *not switched on*
 `humidity` | True | list/string |  | Humidity sensor entities
 `humidity_threshold` | True | integer |  | If humidity is *above* this value, lights will *not switched off*
-`motion_state_on` | True | integer | | If using motion sensors which don't listen to events like Xiaomi do, add this to your config with "on". This will listen to state changes instead
-`motion_state_off` | True | integer | | If using motion sensors which don't listen to events like Xiaomi do, add this to your config with "off". This will listen to the state changes instead.
+`motion_state_on` | True | integer | | If using motion sensors which don't send events if already activated, like Xiaomi do, add this to your config with "on". This will listen to state changes instead
+`motion_state_off` | True | integer | | If using motion sensors which don't send events if already activated, like Xiaomi do, add this to your config with "off". This will listen to the state changes instead.
+
 ### daytimes
 
 key | optional | type | default | description

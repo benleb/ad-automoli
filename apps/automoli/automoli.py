@@ -67,6 +67,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.room = str(self.args.get("room"))
         self.delay = int(self.args.get("delay", DEFAULT_DELAY))
         self.event_motion = self.args.get("motion_event", None)
+        self.motion_state_on = self.args.get("motion_state_on", None)
+        self.motion_state_off = self.args.get("motion_state_off", None)
         # devices
         self.lights: Set[str] = self.args.get("lights", set())
         self.sensors_motion: Set[str] = self.args.pop("motion", set())
@@ -208,16 +210,27 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # set up event listener for each sensor
         for sensor in self.sensors_motion:
             # listen to xiaomi sensors by default
-            self.listen_event(
-                self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor
-            )
-            if self.event_motion:
+            if not any([self.motion_state_on, self.motion_state_off]):
                 self.listen_event(
-                    self.motion_event, event=self.event_motion, entity_id=sensor
+                    self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor
+                )
+                self.refresh_timer()
+
+                # do not use listen event and listen state below together
+                continue
+
+            # on/off-only sensors without events on every motion
+            if self.motion_state_on and self.motion_state_off:
+                self.listen_state(
+                    self.motion_detected_state, entity=sensor, new=self.motion_state_on
+                )
+                self.listen_state(
+                    self.motion_cleared_state, entity=sensor, new=self.motion_state_off
                 )
 
-        # start timer on appdaemon start
-        self.refresh_timer()
+            # listen for non-xiaomi events
+            if self.event_motion:
+                self.log(f"\nPlease update your config to use `motion_state_on/off'\n")
 
         # display settings
         self.args.setdefault("listeners", self.sensors_motion)
@@ -258,12 +271,42 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     icon=DAYTIME_SWITCH_ICON,
                 )
 
+    def motion_cleared_state(
+        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
+    ) -> None:
+        # starte the timer if motion is cleared
+        if all(
+            [
+                self.get_state(sensor) == self.motion_state_off
+                for sensor in self.sensors_motion
+            ]
+        ):
+            # all motion sensors off, starting timer
+            self.refresh_timer()
+        else:
+            if self._handle:
+                # cancelling active timer
+                self.cancel_timer(self._handle)
+
+    def motion_detected_state(
+        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
+    ) -> None:
+        # wrapper function
+
+        if self._handle:
+            # cancelling active timer
+            self.cancel_timer(self._handle)
+
+        # calling motion event handler
+        data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
+        self.motion_event("state_changed_detection", data, kwargs)
+
     def motion_event(
         self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]
     ) -> None:
         """Handle motion events."""
         self.adu.log(
-            f"received '{event}' event from ",
+            f"received '{event}' event from "
             f"'{data['entity_id'].replace(KEYWORD_SENSORS, '')}'",
             level="DEBUG",
         )
@@ -287,7 +330,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 level="DEBUG",
             )
 
-        self.refresh_timer()
+        if event != "state_changed_detection":
+            self.refresh_timer()
 
     def refresh_timer(self) -> None:
         """Refresh delay timer."""
