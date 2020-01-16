@@ -84,7 +84,8 @@ key | optional | type | default | description
 `illuminance_threshold` | True | integer |  | If illuminance is *above* this value, lights will *not switched on*
 `humidity` | True | list/string |  | Humidity sensor entities
 `humidity_threshold` | True | integer |  | If humidity is *above* this value, lights will *not switched off*
-
+`motion_state_on` | True | integer | | If using motion sensors which don't listen to events like Xiaomi do, add this to your config with "on". This will listen to state changes instead
+`motion_state_off` | True | integer | | If using motion sensors which don't listen to events like Xiaomi do, add this to your config with "off". This will listen to the state changes instead.
 ### daytimes
 
 key | optional | type | default | description
