@@ -34,7 +34,7 @@ import hassapi as hass
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.4.10"
+APP_VERSION = "0.5.0"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
