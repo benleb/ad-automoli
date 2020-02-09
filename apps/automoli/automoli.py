@@ -13,7 +13,7 @@ bathroom_lights:
   delay: 300
   daytimes:
     - { starttime: "05:30", name: morning, light: 45 }
-    - { starttime: "07:30", name: day, light: "Arbeiten" }
+    - { starttime: "07:30", name: day, light: "Work" }
     - { starttime: "20:30", name: evening, light: 90 }
     - { starttime: "22:30", name: night, light: 0 }
   humidity_threshold: 75
@@ -65,7 +65,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
         self.room = str(self.args.get("room"))
-        self.delay = int(self.args.get("delay", DEFAULT_DELAY))
+        # self.delay = int(self.args.get("delay", DEFAULT_DELAY))
+        delay = int(self.args.get("delay", DEFAULT_DELAY))
         self.event_motion = self.args.get("motion_event", None)
         self.motion_state_on = self.args.get("motion_state_on", None)
         self.motion_state_off = self.args.get("motion_state_off", None)
@@ -144,6 +145,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # build daytimes dict
         for idx, daytime in enumerate(daytimes):
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
+            dt_delay = daytime.get("delay", delay)
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
             dt_is_hue_group = (
                 isinstance(dt_light_setting, str)
@@ -166,12 +168,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     dt_start = self.datetime.strptime(
                         str(daytime.get("starttime")), "%H:%M"
                     ).time()
-            except ValueError as verror:
-                raise ValueError(f"missing start time in daytime '{dt_name}': {verror}")
+            except ValueError as error:
+                raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
 
             # configuration for this daytime
             daytime = dict(
                 daytime=dt_name,
+                delay=dt_delay,
                 # starttime=dt_start,  # datetime is not serializable
                 starttime=dt_start.isoformat(),
                 light_setting=dt_light_setting,
@@ -255,6 +258,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.active = daytime
             if not kwargs.get("initial"):
 
+                delay = daytime["delay"]
                 light_setting = daytime["light_setting"]
                 if isinstance(light_setting, str):
                     is_scene = True
@@ -267,7 +271,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.adu.log(
                     f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
-                    f"{'' if is_scene else '%'}, delay: {hl(self.delay)}sec",
+                    f"{'' if is_scene else '%'}, delay: {hl(delay)}sec",
                     icon=DAYTIME_SWITCH_ICON,
                 )
 
@@ -336,8 +340,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
     def refresh_timer(self) -> None:
         """Refresh delay timer."""
         self.cancel_timer(self._handle)
-        if self.delay != 0:
-            self._handle = self.run_in(self.lights_off, self.delay)
+        if self.active["delay"] != 0:
+            self._handle = self.run_in(self.lights_off, self.active["delay"])
+        # if self.delay != 0:
+        #     self._handle = self.run_in(self.lights_off, self.delay)
 
     def lights_on(self) -> None:
         """Turn on the lights."""
@@ -424,7 +430,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.refresh_timer()
             self.adu.log(
                 f"🛁 no motion in {hl(self.room.capitalize())} since "
-                f"{hl(self.delay)}s → but {hl(float(self.get_state(blocker)))}%RH > "
+                f"{hl(self.active['delay'])}s → "
+                f"but {hl(float(self.get_state(blocker)))}%RH > "
                 f"{self.humidity_threshold}%RH"
             )
         else:
@@ -434,7 +441,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self.turn_off(entity)
                 self.adu.log(
                     f"no motion in {hl(self.room.capitalize())} since "
-                    f"{hl(self.delay)}s → turned {hl(f'off')}",
+                    f"{hl(self.active['delay'])}s → turned {hl(f'off')}",
                     icon=OFF_ICON,
                 )
 
