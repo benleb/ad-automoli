@@ -336,7 +336,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
     def refresh_timer(self) -> None:
         """Refresh delay timer."""
         self.cancel_timer(self._handle)
-        self._handle = self.run_in(self.lights_off, self.delay)
+        if self.delay != 0:
+            self._handle = self.run_in(self.lights_off, self.delay)
 
     def lights_on(self) -> None:
         """Turn on the lights."""
