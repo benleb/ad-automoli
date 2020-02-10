@@ -64,22 +64,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
-        self.room = str(self.args.get("room"))
-        # self.delay = int(self.args.get("delay", DEFAULT_DELAY))
-        delay = int(self.args.get("delay", DEFAULT_DELAY))
-        self.event_motion = self.args.get("motion_event", None)
-        self.motion_state_on = self.args.get("motion_state_on", None)
-        self.motion_state_off = self.args.get("motion_state_off", None)
-        # devices
-        self.lights: Set[str] = self.args.get("lights", set())
-        self.sensors_motion: Set[str] = self.args.pop("motion", set())
-        self.sensors_illuminance: Set[str] = self.args.pop("illuminance", set())
-        self.sensors_humidity: Set[str] = self.args.pop("humidity", set())
-        # device config
-        self.illuminance_threshold: Optional[int] = self.args.get(
-            "illuminance_threshold"
+        # python version check
+        if not py37_or_higher:
+            raise AssertionError(
+                f"Unsupported Python version! Please update to {hl('Python>=3.7')}!"
         )
-        self.humidity_threshold: Optional[int] = self.args.get("humidity_threshold")
 
         # install required packages from requirements.txt
         if self.args.get("install_requirements", True):
