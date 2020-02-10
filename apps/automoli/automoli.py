@@ -81,6 +81,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
         self.humidity_threshold: Optional[int] = self.args.get("humidity_threshold")
 
+        # install required packages from requirements.txt
+        if self.args.get("install_requirements", True):
+            assert self.handle_requirements(APP_REQUIREMENTS)
         # on/off switch via input.boolean
         self.disable_switch_entity = self.args.get("disable_switch_entity")
 
@@ -451,5 +454,55 @@ class AutoMoLi(hass.Hass):  # type: ignore
             sensor
             for sensor in self.get_state()
             if keyword in sensor
-            and self.room in (self.friendly_name(sensor)).lower().replace("ü", "u")
+    def handle_requirements(
+        self, requirements: List[str], venv: Optional[str] = None,
+    ) -> bool:
+        """Install a package on PyPi. Accepts pip compatible package strings.
+        Return boolean if install successful.
+        """
+        from subprocess import run
+        from sys import executable
+
+        for package in [Requirement.parse(req) for req in requirements]:
+            try:
+                version(package.project_name)
+            except PackageNotFoundError:
+
+                self.log("Installing required package %s...", package)
+
+                env = os.environ.copy()
+                command = [
+                    executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--quiet",
+                    "--disable-pip-version-check",
+                    "--no-cache-dir",
+                    "--upgrade",
+                    str(package),
         ]
+
+                if venv:
+                    # assert not is_virtual_env()
+                    # This only works if not running in venv
+                    command += ["--user"]
+                    env["PYTHONUSERBASE"] = os.path.abspath(venv)
+                    command += ["--prefix="]
+
+                pip = run(command, universal_newlines=True)
+
+                if pip.returncode != 0:
+                    self.log(
+                        "Unable to install package %s: %s",
+                        package,
+                        pip.stderr.lstrip().strip(),
+                    )
+                    return False
+
+                self.log("%s successfully installed!", package)
+
+            except ValueError:
+                continue
+
+        return True
