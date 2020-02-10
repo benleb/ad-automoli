@@ -25,7 +25,8 @@ bathroom_lights:
     - sensor.humidity_158d0001b95fb7
 """
 
-import sys
+import os
+from asyncio import Future, wait_for
 from datetime import time
 from importlib.metadata import PackageNotFoundError, version
 from sys import version_info
@@ -33,6 +34,8 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 from adutils import ADutils, hl
 from pkg_resources import Requirement
+
+import adapi as adapi
 import hassapi as hass
 
 APP_NAME = "AutoMoLi"
