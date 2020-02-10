@@ -62,11 +62,13 @@ py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
 py38_or_higher = py3_or_higher and version_info.minor >= 8
 
-class AutoMoLi(hass.Hass):  # type: ignore
+
+class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
     """Automatic Motion Lights."""
 
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
+
         # python version check
         if not py37_or_higher:
             raise AssertionError(
@@ -76,66 +78,70 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # install required packages from requirements.txt
         if self.args.get("install_requirements", True):
             assert self.handle_requirements(APP_REQUIREMENTS)
+
+        # set room
+        self.room = str(self.args.get("room"))
+
+        # sensor entities
+        self.sensors = {
+            "motion": self.args.pop("motion", set()),
+            "humidity": self.args.get("humidity", set()),
+            "illuminance": self.args.get("illuminance", set()),
+        }
+
+        # state values
+        self.states = {
+            "motion_on": self.args.get("motion_state_on", None),
+            "motion_off": self.args.get("motion_state_off", None),
+        }
+
+        # threshold values
+        self.thresholds = {
+            "humidity": self.args.get("humidity_threshold"),
+            "illuminance": self.args.get("illuminance_threshold"),
+        }
+
         # on/off switch via input.boolean
         self.disable_switch_entity = self.args.get("disable_switch_entity")
 
-        # use user-defined daytimes if available
-        daytimes: List[Dict[str, Union[int, str]]] = self.args.get(
-            "daytimes", DEFAULT_DAYTIMES
-        )
-
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
+
+        # lights_off callback handle
         self._handle = None
 
         # define light entities switched by automoli
-        if self.lights:
-            self.lights = set(self.lights)
-        elif self.entity_exists(f"light.{self.room}"):
-            self.lights.update([f"light.{self.room}"])
+        self.lights: Set[str] = self.args.get("lights", set())
+        if not self.lights:
+            room_light_group = f"light.{self.room}"
+            if self.entity_exists(room_light_group):
+                self.lights.add(room_light_group)
         else:
-            self.lights.update(self.find_sensors(KEYWORD_LIGHTS))
+                self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
+            if not self.lights:
+                raise ValueError(f"No lights available, sorry! ('{KEYWORD_LIGHTS}')")
 
         # define sensor entities monitored by automoli
-        if not self.sensors_motion:
-            self.sensors_motion.update(self.find_sensors(KEYWORD_SENSORS))
+        if not self.sensors["motion"]:
+            self.sensors["motion"].update(await self.find_sensors(KEYWORD_MOTION))
+            if not self.sensors["motion"]:
+                raise ValueError(f"No sensors given/found, sorry! ('{KEYWORD_MOTION}')")
 
         # enumerate humidity sensors if threshold given
-        if self.humidity_threshold:
-            if not self.sensors_humidity:
-                self.sensors_humidity.update(
-                    self.find_sensors(KEYWORD_SENSORS_HUMIDITY)
-                )
-
-            if not self.sensors_humidity:
-                self.log(
-                    f"No humidity sensors given/found ('{KEYWORD_SENSORS_HUMIDITY}') ",
-                    f"→ disabling humidity threshold blocker.",
-                )
-                self.humidity_threshold = None
+        if self.thresholds["humidity"] and not self.sensors["humidity"]:
+            self.sensors["humidity"].update(await self.find_sensors(KEYWORD_HUMIDITY))
+            if not self.sensors["humidity"]:
+                self.log(f"No humidity sensors available → disabling blocker.")
+                self.thresholds["humidity"] = None
 
         # enumerate illuminance sensors if threshold given
-        if self.illuminance_threshold:
-            if not self.sensors_illuminance:
-                self.sensors_illuminance.update(
-                    self.find_sensors(KEYWORD_SENSORS_ILLUMINANCE)
+        if self.thresholds["illuminance"] and not self.sensors["illuminance"]:
+            self.sensors["illuminance"].update(
+                await self.find_sensors(KEYWORD_ILLUMINANCE)
                 )
-
-            if not self.sensors_illuminance:
-                self.log(
-                    f"No illuminance sensors given/found ",
-                    f"('{KEYWORD_SENSORS_ILLUMINANCE}') → ",
-                    f"disabling illuminance threshold blocker.",
-                )
-                self.illuminance_threshold = None
-
-        # sanity check
-        if not self.sensors_motion:
-            raise ValueError(f"No sensors given/found, sorry! ('{KEYWORD_SENSORS}')")
-        elif not self.lights:
-            raise ValueError(f"No sensors given/found, sorry! ('{KEYWORD_LIGHTS}')")
-
-        starttimes: Set[time] = set()
+            if not self.sensors["illuminance"]:
+                self.log(f"No illuminance sensors available → disabling blocker.")
+                self.thresholds["illuminance"] = None
 
         # use user-defined daytimes if available
         # daytimes = await self.build_daytimes(
