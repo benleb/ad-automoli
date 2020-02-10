@@ -180,19 +180,15 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                     self.motion_cleared, entity=sensor, new=self.states["motion_off"]
                 )
 
-            # listen for non-xiaomi events
-            if self.event_motion:
-                self.log(f"\nPlease update your config to use `motion_state_on/off'\n")
-
         # display settings
-        self.args.setdefault("listeners", self.sensors_motion)
+        self.args.setdefault("listeners", self.sensors["motion"])
         self.args.setdefault(
-            "sensors_illuminance", list(self.sensors_illuminance)
-        ) if self.sensors_illuminance else None
+            "sensors_illuminance", list(self.sensors["illuminance"])
+        ) if self.sensors["illuminance"] else None
         self.args.setdefault(
-            "sensors_humidity", list(self.sensors_humidity)
-        ) if self.sensors_humidity else None
-        self.args["daytimes"] = daytimes
+            "sensors_humidity", list(self.sensors["humidity"])
+        ) if self.sensors["humidity"] else None
+        self.args["daytimes"] = await wait_for(await daytimes, 2)
 
         # init adutils
         self.adu = ADutils(
