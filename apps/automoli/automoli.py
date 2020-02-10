@@ -28,12 +28,12 @@ bathroom_lights:
 import os
 from asyncio import Future, wait_for
 from datetime import time
+
 # from importlib.metadata import PackageNotFoundError, version
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
-from adutils import ADutils, hl
-from pkg_resources import Requirement, get_provider
+from pkg_resources import DistributionNotFound, Requirement, get_provider
 
 import adapi as adapi
 import hassapi as hass
@@ -44,6 +44,7 @@ APP_VERSION = "0.5.3"
 APP_REQUIREMENTS = [
     req.rstrip("\n") for req in open(f"{os.path.dirname(__file__)}/requirements.txt")
 ]
+
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
@@ -78,15 +79,12 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
     async def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
 
-        # python version check
-        if not py37_or_higher:
-            raise AssertionError(
-                f"Unsupported Python version! Please update to {hl('Python>=3.7')}!"
-            )
+        # install requirements
+        assert self.handle_requirements(APP_REQUIREMENTS)
+        from adutils import ADutils, hl
 
-        # install required packages from requirements.txt
-        if self.args.get("install_requirements", True):
-            assert self.handle_requirements(APP_REQUIREMENTS)
+        # python version check
+        assert py37_or_higher
 
         # set room
         self.room = str(self.args.get("room"))
@@ -465,8 +463,9 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
         return daytimes
 
+    @staticmethod
     def handle_requirements(
-        self, requirements: List[str], venv: Optional[str] = None,
+        requirements: List[str], venv: Optional[str] = None,
     ) -> bool:
         """Install a package on PyPi. Accepts pip compatible package strings.
         Return boolean if install successful.
@@ -476,10 +475,11 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
         for package in [Requirement.parse(req) for req in requirements]:
             try:
-                get_provider(package.project_name)
-            except ModuleNotFoundError:
+                # version(package.project_name)
+                get_provider(package)
+            except (ModuleNotFoundError, DistributionNotFound):
 
-                self.log("Installing required package %s...", package)
+                print(f"Installing required package {package}...")
 
                 env = os.environ.copy()
                 command = [
@@ -504,14 +504,14 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                 pip = run(command, universal_newlines=True)
 
                 if pip.returncode != 0:
-                    self.log(
+                    print(
                         "Unable to install package %s: %s",
                         package,
                         pip.stderr.lstrip().strip(),
                     )
                     return False
 
-                self.log("%s successfully installed!", package)
+                print(f"{package} successfully installed!")
 
             except ValueError:
                 continue
