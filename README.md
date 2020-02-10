@@ -87,6 +87,7 @@ key | optional | type | default | description
 `humidity_threshold` | True | integer |  | If humidity is *above* this value, lights will *not switched off*
 `motion_state_on` | True | integer | | If using motion sensors which don't send events if already activated, like Xiaomi do, add this to your config with "on". This will listen to state changes instead
 `motion_state_off` | True | integer | | If using motion sensors which don't send events if already activated, like Xiaomi do, add this to your config with "off". This will listen to the state changes instead.
+`install_requirements` | True | boolean | True | Disable automatic installation of requirements from `requirements.txt` file.
 
 ### daytimes
 
