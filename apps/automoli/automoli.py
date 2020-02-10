@@ -145,20 +145,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         starttimes: Set[time] = set()
 
-        # build daytimes dict
-        for idx, daytime in enumerate(daytimes):
-            dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
-            dt_delay = daytime.get("delay", delay)
-            dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
-            dt_is_hue_group = (
-                isinstance(dt_light_setting, str)
-                and not dt_light_setting.startswith("scene.")
-                and any(
-                    [
-                        self.get_state(entity_id=entity, attribute="is_hue_group")
-                        for entity in self.lights
-                    ]
-                )
+        # use user-defined daytimes if available
+        # daytimes = await self.build_daytimes(
+        daytimes: Future[Any] = self.create_task(
+            self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
             )
 
             py37_or_higher = sys.version_info.major >= 3 and sys.version_info.minor >= 7
@@ -454,6 +444,69 @@ class AutoMoLi(hass.Hass):  # type: ignore
             sensor
             for sensor in self.get_state()
             if keyword in sensor
+    async def build_daytimes(
+        self, daytimes: List[Any]
+    ) -> Optional[List[Dict[str, Union[int, str]]]]:
+        starttimes: Set[time] = set()
+        delay = int(self.args.get("delay", DEFAULT_DELAY))
+
+        for idx, daytime in enumerate(daytimes):
+            dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
+            dt_delay = daytime.get("delay", delay)
+            dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
+            dt_is_hue_group = (
+                isinstance(dt_light_setting, str)
+                and not dt_light_setting.startswith("scene.")
+                and any(
+                    [
+                        await self.get_state(entity_id=entity, attribute="is_hue_group")
+                        for entity in self.lights
+                    ]
+                )
+            )
+
+            dt_start: time
+            try:
+                dt_start = time.fromisoformat(str(daytime.get("starttime")))
+            except ValueError as error:
+                raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
+
+            # configuration for this daytime
+            daytime = dict(
+                daytime=dt_name,
+                delay=dt_delay,
+                # starttime=dt_start,  # datetime is not serializable
+                starttime=dt_start.isoformat(),
+                light_setting=dt_light_setting,
+                is_hue_group=dt_is_hue_group,
+            )
+
+            # info about next daytime
+            next_dt_start = time.fromisoformat(
+                str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
+            )
+
+            # collect all start times for sanity check
+            if dt_start in starttimes:
+                raise ValueError(
+                    f"Start times of all daytimes have to be unique! ",
+                    f"Duplicate found: {dt_start}",
+                )
+
+            starttimes.add(dt_start)
+
+            # check if this daytime should ne active now
+            if await self.now_is_between(str(dt_start), str(next_dt_start)):
+                self.switch_daytime(dict(daytime=daytime, initial=True))
+                self.args["active_daytime"] = daytime.get("daytime")
+
+            # schedule callbacks for daytime switching
+            await self.run_daily(
+                self.switch_daytime, dt_start, random_start=-10, **dict(daytime=daytime)
+            )
+
+        return daytimes
+
     def handle_requirements(
         self, requirements: List[str], venv: Optional[str] = None,
     ) -> bool:
