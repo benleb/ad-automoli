@@ -54,10 +54,13 @@ DEFAULT_DAYTIMES = [
 EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
 
 KEYWORD_LIGHTS = "light."
-KEYWORD_SENSORS = "binary_sensor.motion_sensor_"
-KEYWORD_SENSORS_HUMIDITY = "sensor.humidity_"
-KEYWORD_SENSORS_ILLUMINANCE = "sensor.illumination_"
+KEYWORD_MOTION = "binary_sensor.motion_sensor_"
+KEYWORD_HUMIDITY = "sensor.humidity_"
+KEYWORD_ILLUMINANCE = "sensor.illumination_"
 
+py3_or_higher = version_info.major >= 3
+py37_or_higher = py3_or_higher and version_info.minor >= 7
+py38_or_higher = py3_or_higher and version_info.minor >= 8
 
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
