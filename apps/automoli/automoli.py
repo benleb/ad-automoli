@@ -27,14 +27,20 @@ bathroom_lights:
 
 import sys
 from datetime import time
+from importlib.metadata import PackageNotFoundError, version
+from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
 from adutils import ADutils, hl
+from pkg_resources import Requirement
 import hassapi as hass
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 APP_VERSION = "0.5.3"
+APP_REQUIREMENTS = [
+    req.rstrip("\n") for req in open(f"{os.path.dirname(__file__)}/requirements.txt")
+]
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
