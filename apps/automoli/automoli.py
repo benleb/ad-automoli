@@ -26,8 +26,8 @@ bathroom_lights:
 """
 
 import os
-from asyncio import Future, wait_for
 from datetime import time
+
 # from importlib.metadata import PackageNotFoundError, version
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
@@ -79,7 +79,7 @@ py38_or_higher = py3_or_higher and version_info.minor >= 8
 class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
     """Automatic Motion Lights."""
 
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
 
         # python version check
@@ -123,37 +123,33 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             if self.entity_exists(room_light_group):
                 self.lights.add(room_light_group)
             else:
-                self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
+                self.lights.update(self.find_sensors(KEYWORD_LIGHTS))
             if not self.lights:
                 raise ValueError(f"No lights available, sorry! ('{KEYWORD_LIGHTS}')")
 
         # define sensor entities monitored by automoli
         if not self.sensors["motion"]:
-            self.sensors["motion"].update(await self.find_sensors(KEYWORD_MOTION))
+            self.sensors["motion"].update(self.find_sensors(KEYWORD_MOTION))
             if not self.sensors["motion"]:
                 raise ValueError(f"No sensors given/found, sorry! ('{KEYWORD_MOTION}')")
 
         # enumerate humidity sensors if threshold given
         if self.thresholds["humidity"] and not self.sensors["humidity"]:
-            self.sensors["humidity"].update(await self.find_sensors(KEYWORD_HUMIDITY))
+            self.sensors["humidity"].update(self.find_sensors(KEYWORD_HUMIDITY))
             if not self.sensors["humidity"]:
                 self.log(f"No humidity sensors available → disabling blocker.")
                 self.thresholds["humidity"] = None
 
         # enumerate illuminance sensors if threshold given
         if self.thresholds["illuminance"] and not self.sensors["illuminance"]:
-            self.sensors["illuminance"].update(
-                await self.find_sensors(KEYWORD_ILLUMINANCE)
-            )
+            self.sensors["illuminance"].update(self.find_sensors(KEYWORD_ILLUMINANCE))
             if not self.sensors["illuminance"]:
                 self.log(f"No illuminance sensors available → disabling blocker.")
                 self.thresholds["illuminance"] = None
 
         # use user-defined daytimes if available
-        # daytimes = await self.build_daytimes(
-        daytimes: Future[Any] = self.create_task(
-            self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
-        )
+        # daytimes = self.build_daytimes(
+        daytimes = self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
 
         # set up event listener for each sensor
         for sensor in self.sensors["motion"]:
@@ -185,7 +181,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
         self.args.setdefault(
             "sensors_humidity", list(self.sensors["humidity"])
         ) if self.sensors["humidity"] else None
-        self.args["daytimes"] = await wait_for(await daytimes, 2)
+        self.args["daytimes"] = daytimes
 
         # init adutils
         self.adu = ADutils(
@@ -247,7 +243,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
         self.motion_event("state_changed_detection", data, kwargs)
 
-    async def motion_event(
+    def motion_event(
         self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]
     ) -> None:
         """Handle motion events."""
@@ -258,13 +254,13 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
         )
 
         # check if automoli is disabled via home assistant entity
-        if await self.get_state(self.disable_switch_entity) == "off":
+        if self.get_state(self.disable_switch_entity) == "off":
             self.adu.log(f"AutoMoLi disabled via {self.disable_switch_entity}",)
             return
 
         # turn on the lights if not already
-        if not any([await self.get_state(light) == "on" for light in self.lights]):
-            self.create_task(self.lights_on())
+        if not any([self.get_state(light) == "on" for light in self.lights]):
+            self.lights_on()
         else:
             self.adu.log(
                 f"light in {self.room.capitalize()} already on → refreshing the timer",
@@ -272,21 +268,21 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             )
 
         if event != "state_changed_detection":
-            self.create_task(self.refresh_timer())
+            self.refresh_timer()
 
-    async def refresh_timer(self) -> None:
+    def refresh_timer(self) -> None:
         """Refresh delay timer."""
-        await self.cancel_timer(self._handle)
+        self.cancel_timer(self._handle)
         if self.active["delay"] != 0:
-            self._handle = await self.run_in(self.lights_off, self.active["delay"])
+            self._handle = self.run_in(self.lights_off, self.active["delay"])
 
-    async def lights_on(self) -> None:
+    def lights_on(self) -> None:
         """Turn on the lights."""
         if self.thresholds["illuminance"]:
             blocker = [
                 sensor
                 for sensor in self.sensors["illuminance"]
-                if float(await self.get_state(sensor)) >= self.thresholds["illuminance"]
+                if float(self.get_state(sensor)) >= self.thresholds["illuminance"]
             ]
             if blocker:
                 self.adu.log(
@@ -298,10 +294,10 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
             for entity in self.lights:
 
-                if self.active["is_hue_group"] and await self.get_state(
+                if self.active["is_hue_group"] and self.get_state(
                     entity_id=entity, attribute="is_hue_group"
                 ):
-                    await self.call_service(
+                    self.call_service(
                         "hue/hue_activate_scene",
                         group_name=self.friendly_name(entity),
                         scene_name=self.active["light_setting"],
@@ -313,10 +309,8 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                 if self.active["light_setting"].startswith("scene."):
                     item = self.active["light_setting"]
 
-                # await self.turn_on(item)
-                self.create_task(
-                    self.call_service("homeassistant/turn_on", entity_id=item)
-                )
+                # self.turn_on(item)
+                self.call_service("homeassistant/turn_on", entity_id=item)
 
             self.adu.log(
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
@@ -333,16 +327,12 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             else:
                 for entity in self.lights:
                     if entity.startswith("switch."):
-                        self.create_task(
-                            self.call_service("homeassistant/turn_on", entity_id=entity)
-                        )
+                        self.call_service("homeassistant/turn_on", entity_id=entity)
                     else:
-                        self.create_task(
-                            self.call_service(
-                                "homeassistant/turn_on",
-                                entity_id=entity,
-                                brightness_pct=self.active["light_setting"],
-                            )
+                        self.call_service(
+                            "homeassistant/turn_on",
+                            entity_id=entity,
+                            brightness_pct=self.active["light_setting"],
                         )
 
                         self.adu.log(
@@ -389,17 +379,16 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                     icon=OFF_ICON,
                 )
 
-    async def find_sensors(self, keyword: str) -> List[str]:
+    def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
         return [
             sensor
-            for sensor in await self.get_state()
+            for sensor in self.get_state()
             if keyword in sensor
-            and self.room
-            in (await self.friendly_name(sensor)).lower().replace("ü", "u")
+            and self.room in (self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
 
-    async def build_daytimes(
+    def build_daytimes(
         self, daytimes: List[Any]
     ) -> Optional[List[Dict[str, Union[int, str]]]]:
         starttimes: Set[time] = set()
@@ -414,7 +403,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                 and not dt_light_setting.startswith("scene.")
                 and any(
                     [
-                        await self.get_state(entity_id=entity, attribute="is_hue_group")
+                        self.get_state(entity_id=entity, attribute="is_hue_group")
                         for entity in self.lights
                     ]
                 )
@@ -450,12 +439,12 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             starttimes.add(dt_start)
 
             # check if this daytime should ne active now
-            if await self.now_is_between(str(dt_start), str(next_dt_start)):
+            if self.now_is_between(str(dt_start), str(next_dt_start)):
                 self.switch_daytime(dict(daytime=daytime, initial=True))
                 self.args["active_daytime"] = daytime.get("daytime")
 
             # schedule callbacks for daytime switching
-            await self.run_daily(
+            self.run_daily(
                 self.switch_daytime, dt_start, random_start=-10, **dict(daytime=daytime)
             )
 
