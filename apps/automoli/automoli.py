@@ -28,12 +28,9 @@ bathroom_lights:
 import os
 from asyncio import Future, wait_for
 from datetime import time
-
 # from importlib.metadata import PackageNotFoundError, version
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
-
-from pkg_resources import DistributionNotFound, Requirement, get_provider
 
 import adapi as adapi
 import hassapi as hass
@@ -45,6 +42,12 @@ APP_REQUIREMENTS = [
     req.rstrip("\n") for req in open(f"{os.path.dirname(__file__)}/requirements.txt")
 ]
 
+try:
+    from adutils import ADutils, hl
+except ImportError:
+    from .automoli.pip import handle_requirements
+
+    assert handle_requirements(APP_REQUIREMENTS)
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
@@ -78,10 +81,6 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
     async def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
-
-        # install requirements
-        assert self.handle_requirements(APP_REQUIREMENTS)
-        from adutils import ADutils, hl
 
         # python version check
         assert py37_or_higher
@@ -431,8 +430,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             daytime = dict(
                 daytime=dt_name,
                 delay=dt_delay,
-                # starttime=dt_start,  # datetime is not serializable
-                starttime=dt_start.isoformat(),
+                starttime=dt_start.isoformat(),  # datetime is not serializable
                 light_setting=dt_light_setting,
                 is_hue_group=dt_is_hue_group,
             )
@@ -445,7 +443,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             # collect all start times for sanity check
             if dt_start in starttimes:
                 raise ValueError(
-                    f"Start times of all daytimes have to be unique! ",
+                    f"Start times of all daytimes have to be unique! "
                     f"Duplicate found: {dt_start}",
                 )
 
@@ -462,58 +460,3 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             )
 
         return daytimes
-
-    @staticmethod
-    def handle_requirements(
-        requirements: List[str], venv: Optional[str] = None,
-    ) -> bool:
-        """Install a package on PyPi. Accepts pip compatible package strings.
-        Return boolean if install successful.
-        """
-        from subprocess import run
-        from sys import executable
-
-        for package in [Requirement.parse(req) for req in requirements]:
-            try:
-                # version(package.project_name)
-                get_provider(package)
-            except (ModuleNotFoundError, DistributionNotFound):
-
-                print(f"Installing required package {package}...")
-
-                env = os.environ.copy()
-                command = [
-                    executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--quiet",
-                    "--disable-pip-version-check",
-                    "--no-cache-dir",
-                    "--upgrade",
-                    str(package),
-                ]
-
-                if venv:
-                    # assert not is_virtual_env()
-                    # This only works if not running in venv
-                    command += ["--user"]
-                    env["PYTHONUSERBASE"] = os.path.abspath(venv)
-                    command += ["--prefix="]
-
-                pip = run(command, universal_newlines=True)
-
-                if pip.returncode != 0:
-                    print(
-                        "Unable to install package %s: %s",
-                        package,
-                        pip.stderr.lstrip().strip(),
-                    )
-                    return False
-
-                print(f"{package} successfully installed!")
-
-            except ValueError:
-                continue
-
-        return True
