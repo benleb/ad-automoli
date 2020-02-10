@@ -155,62 +155,11 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
             self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
             )
 
-            py37_or_higher = sys.version_info.major >= 3 and sys.version_info.minor >= 7
-
-            dt_start: time
-            try:
-                if py37_or_higher:
-                    dt_start = time.fromisoformat(str(daytime.get("starttime")))
-                else:
-                    dt_start = self.datetime.strptime(
-                        str(daytime.get("starttime")), "%H:%M"
-                    ).time()
-            except ValueError as error:
-                raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
-
-            # configuration for this daytime
-            daytime = dict(
-                daytime=dt_name,
-                delay=dt_delay,
-                # starttime=dt_start,  # datetime is not serializable
-                starttime=dt_start.isoformat(),
-                light_setting=dt_light_setting,
-                is_hue_group=dt_is_hue_group,
-            )
-
-            # info about next daytime
-            if py37_or_higher:
-                next_dt_start = time.fromisoformat(
-                    str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
-                )
-            else:
-                next_dt_start = self.datetime.strptime(
-                    str(daytimes[(idx + 1) % len(daytimes)].get("starttime")), "%H:%M"
-                ).time()
-
-            # collect all start times for sanity check
-            if dt_start in starttimes:
-                raise ValueError(
-                    f"Start times of all daytimes have to be unique! ",
-                    f"Duplicate found: {dt_start}",
-                )
-
-            starttimes.add(dt_start)
-
-            # check if this daytime should ne active now
-            if self.now_is_between(str(dt_start), str(next_dt_start)):
-                self.switch_daytime(dict(daytime=daytime, initial=True))
-                self.args["active_daytime"] = daytime.get("daytime")
-
-            # schedule callbacks for daytime switching
-            self.run_daily(
-                self.switch_daytime, dt_start, random_start=-10, **dict(daytime=daytime)
-            )
-
         # set up event listener for each sensor
-        for sensor in self.sensors_motion:
+        for sensor in self.sensors["motion"]:
+
             # listen to xiaomi sensors by default
-            if not any([self.motion_state_on, self.motion_state_off]):
+            if not any([self.states["motion_on"], self.states["motion_off"]]):
                 self.listen_event(
                     self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor
                 )
@@ -220,12 +169,12 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                 continue
 
             # on/off-only sensors without events on every motion
-            if self.motion_state_on and self.motion_state_off:
+            if all([self.states["motion_on"], self.states["motion_off"]]):
                 self.listen_state(
-                    self.motion_detected_state, entity=sensor, new=self.motion_state_on
+                    self.motion_detected, entity=sensor, new=self.states["motion_on"]
                 )
                 self.listen_state(
-                    self.motion_cleared_state, entity=sensor, new=self.motion_state_off
+                    self.motion_cleared, entity=sensor, new=self.states["motion_off"]
                 )
 
             # listen for non-xiaomi events
