@@ -45,7 +45,7 @@ APP_REQUIREMENTS = [
 try:
     from adutils import ADutils, hl
 except ImportError:
-    from .automoli.pip import handle_requirements
+    from .pip import handle_requirements
 
     assert handle_requirements(APP_REQUIREMENTS)
 
