@@ -279,11 +279,18 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
     def lights_on(self) -> None:
         """Turn on the lights."""
         if self.thresholds["illuminance"]:
-            blocker = [
-                sensor
-                for sensor in self.sensors["illuminance"]
-                if float(self.get_state(sensor)) >= self.thresholds["illuminance"]
-            ]
+            blocker = []
+            for sensor in self.sensors["illuminance"]:
+                try:
+                    if float(self.get_state(sensor)) >= self.thresholds["illuminance"]:
+                        blocker.append(sensor)
+                except ValueError as error:
+                    self.adu.log(
+                        f"could not parse illuminance '{self.get_state(sensor)}' from "
+                        f"'{sensor}': {error}"
+                    )
+                    return
+
             if blocker:
                 self.adu.log(
                     f"According to {hl(' '.join(blocker))} its already bright enough"
