@@ -35,7 +35,7 @@ from pkg_helper import install_packages, missing_packages
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.5.3"
+APP_VERSION = "0.5.4"
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
