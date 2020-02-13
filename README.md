@@ -95,4 +95,4 @@ key | optional | type | default | description
 `starttime` | False | string | | Time this daytime starts
 `name` | False | string | | A name for this daytime
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`. Setting this will overwrite the global `delay` setting for this daytime.
-`light` | False | integer/string | | Light setting (integer value or scene name)
+`light` | False | integer/string | | Light setting (percent integer value (0-100) in or scene name)
