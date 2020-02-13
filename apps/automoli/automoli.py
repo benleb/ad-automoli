@@ -25,29 +25,17 @@ bathroom_lights:
     - sensor.humidity_158d0001b95fb7
 """
 
-import os
 from datetime import time
-
-# from importlib.metadata import PackageNotFoundError, version
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
 import adapi as adapi
 import hassapi as hass
+from pkg_helper import install_packages, missing_packages
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 APP_VERSION = "0.5.3"
-APP_REQUIREMENTS = [
-    req.rstrip("\n") for req in open(f"{os.path.dirname(__file__)}/requirements.txt")
-]
-
-try:
-    from adutils import ADutils, hl
-except ImportError:
-    from .pip import handle_requirements
-
-    assert handle_requirements(APP_REQUIREMENTS)
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
@@ -74,6 +62,11 @@ KEYWORD_ILLUMINANCE = "sensor.illumination_"
 py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
 py38_or_higher = py3_or_higher and version_info.minor >= 8
+
+if missing_packages:
+    install_packages(missing_packages)
+
+from adutils import ADutils, hl
 
 
 class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
