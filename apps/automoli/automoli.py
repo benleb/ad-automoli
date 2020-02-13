@@ -26,6 +26,7 @@ bathroom_lights:
 """
 
 from datetime import time
+from importlib import import_module
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -63,8 +64,9 @@ py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
 py38_or_higher = py3_or_higher and version_info.minor >= 8
 
-if missing_packages:
-    install_packages(missing_packages)
+# requirements
+if missing_packages and install_packages(missing_packages):
+    [import_module(package) for package in missing_packages]
 
 from adutils import ADutils, hl
 
