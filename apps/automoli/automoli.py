@@ -27,19 +27,20 @@ bathroom_lights:
 __version__ = "0.5.5"
 
 from datetime import time
-
 from importlib import import_module
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
+from pkg_resources import parse_requirements as parse
+
 import adapi as adapi
 import hassapi as hass
-
-from pkg_helper import get_requirements, install_packages, missing_requirements
+from pkg_helper import install_packages, missing_requirements
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 APP_VERSION = "0.5.5"
+APP_REQUIREMENTS = {"adutils~=0.4.10"}
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
@@ -69,9 +70,9 @@ py38_or_higher = py3_or_higher and version_info.minor >= 8
 
 
 # install requirements
-missing = missing_requirements()
+missing = missing_requirements(APP_REQUIREMENTS)
 if missing and install_packages(missing):
-    [import_module(package) for package in get_requirements().keys()]
+    [import_module(req.key) for req in parse(APP_REQUIREMENTS)]
 
 from adutils import ADutils, hl  # noqa
 
@@ -81,7 +82,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
-        self.adu = ADutils(APP_NAME, {}, icon=APP_ICON, ad=self)
+        self.adu = ADutils(APP_NAME, config={}, icon=APP_ICON, ad=self)
 
         # python version check
         assert py37_or_higher

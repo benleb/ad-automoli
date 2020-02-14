@@ -1,28 +1,28 @@
+import os
 import sys
-from typing import Dict, List
+# from site import getuserbase
+from typing import Dict, List, Set
 
-from pkg_resources import Requirement, working_set
-
-
-def get_requirements() -> Dict[str, Requirement]:
-    from os.path import dirname
-
-    requirements: Dict[str, Requirement] = {}
-    for required_package in open(f"{dirname(__file__)}/requirements.txt"):
-        req: Requirement = Requirement.parse(required_package.rstrip("\n"))
-        requirements[req.key] = req
-    return requirements
+from pkg_resources import Distribution, Requirement
+from pkg_resources import parse_requirements as parse
+from pkg_resources import working_set
 
 
-def missing_requirements() -> List[Requirement]:
-    requirements = get_requirements()
-    required = {req for req in requirements.keys()}
-    installed = {pkg.key for pkg in working_set}
-    missing = [requirements[req] for req in required - installed]
+def missing_requirements(requirements: Set[str]) -> Set[Requirement]:
+    required = {req for req in parse(requirements) if not working_set.find(req)}
+    installed = {pkg.as_requirement() for pkg in working_set}
+    missing = {req for req in required - installed}
     return missing
 
 
-def install_packages(requirements: List[Requirement]) -> bool:
+def is_virtual_env() -> bool:
+    """Check if we run in a venv/virtualenv."""
+    return getattr(sys, "base_prefix", sys.prefix) != sys.prefix or hasattr(
+        sys, "real_prefix"
+    )
+
+
+def install_packages(requirements: Set[Requirement]) -> bool:
     """Install a package on PyPi."""
     from subprocess import run
 
@@ -41,6 +41,12 @@ def install_packages(requirements: List[Requirement]) -> bool:
         *package_list,
     ]
 
+    # if not is_virtual_env():
+    #     os.environ.copy()["PYTHONUSERBASE"] = os.path.abspath(getuserbase())
+    #     command.append("--user")
+    #     command.append("--prefix=")
+
+    print(f"installing via: {' '.join(command)}")
     pip = run(command, universal_newlines=True)
 
     if pip.returncode != 0:
@@ -48,5 +54,5 @@ def install_packages(requirements: List[Requirement]) -> bool:
         print(pip.stderr)
         return False
 
-    print(f"packages installed: " f"{', '.join(package_list)}")
+    print(f"packages installed: {', '.join(package_list)}")
     return True
