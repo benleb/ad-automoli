@@ -25,6 +25,8 @@ Use [HACS](https://github.com/custom-components/hacs) or [download](https://gith
 
 ## App configuration
 
+Add your configuration to appdaemon/apps/apps.yaml, an example is below.
+
 ```yaml
 livingroom:
   module: automoli
