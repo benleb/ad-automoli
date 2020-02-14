@@ -81,6 +81,7 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
+        self.adu = ADutils(APP_NAME, {}, icon=APP_ICON, ad=self)
 
         # python version check
         assert py37_or_higher
@@ -183,9 +184,10 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
         self.args["daytimes"] = daytimes
 
         # init adutils
-        self.adu = ADutils(
-            APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True
-        )
+        # self.adu = ADutils(
+        #     APP_NAME, self.args, icon=APP_ICON, ad=self, show_config=True
+        # )
+        self.adu.show_info(self.args)
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
