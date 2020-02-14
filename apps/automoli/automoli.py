@@ -24,15 +24,18 @@ bathroom_lights:
   humidity:
     - sensor.humidity_158d0001b95fb7
 """
+__version__ = "0.5.5"
 
 from datetime import time
+
 from importlib import import_module
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
 import adapi as adapi
 import hassapi as hass
-from pkg_helper import install_packages, missing_packages
+
+from pkg_helper import get_requirements, install_packages, missing_requirements
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
@@ -64,11 +67,13 @@ py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
 py38_or_higher = py3_or_higher and version_info.minor >= 8
 
-# requirements
-if missing_packages and install_packages(missing_packages):
-    [import_module(package) for package in missing_packages]
 
-from adutils import ADutils, hl
+# install requirements
+missing = missing_requirements()
+if missing and install_packages(missing):
+    [import_module(package) for package in get_requirements().keys()]
+
+from adutils import ADutils, hl  # noqa
 
 
 class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
@@ -143,7 +148,6 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
                 self.thresholds["illuminance"] = None
 
         # use user-defined daytimes if available
-        # daytimes = self.build_daytimes(
         daytimes = self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
 
         # set up event listener for each sensor
