@@ -39,7 +39,7 @@ from pkg_helper import install_packages, missing_requirements
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.5.5"
+APP_VERSION = "0.6.0"
 APP_REQUIREMENTS = {"adutils~=0.4.10"}
 
 ON_ICON = APP_ICON
