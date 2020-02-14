@@ -1,9 +1,7 @@
-import os
 import sys
-# from site import getuserbase
-from typing import Dict, List, Set
+from typing import Set
 
-from pkg_resources import Distribution, Requirement
+from pkg_resources import Requirement
 from pkg_resources import parse_requirements as parse
 from pkg_resources import working_set
 
