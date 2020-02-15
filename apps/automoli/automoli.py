@@ -27,7 +27,7 @@ bathroom_lights:
 __version__ = "0.5.5"
 
 from datetime import time
-from importlib import import_module
+from importlib import import_module, invalidate_caches
 from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -73,6 +73,7 @@ py38_or_higher = py3_or_higher and version_info.minor >= 8
 missing = missing_requirements(APP_REQUIREMENTS)
 if missing and install_packages(missing):
     [import_module(req.key) for req in parse(APP_REQUIREMENTS)]
+    invalidate_caches()
 
 from adutils import ADutils, hl  # noqa
 
