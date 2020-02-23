@@ -21,7 +21,10 @@ Use [HACS](https://github.com/custom-components/hacs) or [download](https://gith
 ### *some things are not yet documented here but the code is commented*
 
 * This must be loaded/configured for every **`room`** separately, see example configuration.
-* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. Manually configured entities have precedence.
+
+## Auto Detection of Lights and sensors
+* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. 
+Manually configured entities take precedence.
 
 ## App configuration
 
@@ -32,20 +35,30 @@ livingroom:
   module: automoli
   class: AutoMoLi
   room: livingroom
+#This is alows to to specify an input boolean you can use to disable AutoMoLi, I found this useful when painting my hallway
   disable_switch_entity: input_boolean.automoli
-  delay: 600
+#Set the global delay, in this case 600 seconds, from when motion ends to the lights turning off, this can be over-ridded for each time period
+delay: 600
   daytimes:
-    - { starttime: "05:30", name: morning, light: "Morning" }
-    - { starttime: "07:30", name: day, light: "Working" }
+#This rule "morning" uses a scene, the scene.livingroom_morning Home Assistant scene will be used
+    - { starttime: "05:30", name: morning, light: "livingroom_morning" }
+    - { starttime: "07:30", name: day, light: "livingroom_working" }
+#This rule "evening" uses a percentage brightness value, and the lights specified in lights: below will be set to 90%
     - { starttime: "20:30", name: evening, light: 90 }
-    - { starttime: "22:30", name: night, light: 20 }
+#This rule the global delay time has been over-ridden so the lights will turn off after 30 seconds of no motion
+    - { starttime: "22:30", name: night, delay: 30, light: 20 }
+#This rule has the lights set to 0, so they will no turn on during this time period
     - { starttime: "23:30", name: more_night, light: 0 }
+#If you are using an illuminance sensor you can set the lowest value here that blocks the lights turning on if its already light enough
   illuminance_threshold: 100
+#You can specify a light group or list of lights here
   lights:
     - light.livingroom
+#You can specify a list of motion sensors here
   motion:
     - binary_sensor.motion_sensor_153d000224f421
     - binary_sensor.motion_sensor_128d4101b95fb7
+#See below for info on humidity    
   humidity:
     - sensor.humidity_128d4101b95fb7
 
@@ -62,6 +75,7 @@ bathroom:
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
     - { starttime: "22:30", name: night, light: 0 }
+#As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.    
   humidity:
     - sensor.humidity_128d4101b95fb7
   humidity_threshold: 75
@@ -97,4 +111,4 @@ key | optional | type | default | description
 `starttime` | False | string | | Time this daytime starts
 `name` | False | string | | A name for this daytime
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`. Setting this will overwrite the global `delay` setting for this daytime.
-`light` | False | integer/string | | Light setting (percent integer value (0-100) in or scene name)
+`light` | False | integer/string | | Light setting (percent integer value (0-100) in or scene name(remove the scene. bit from the beginning)
