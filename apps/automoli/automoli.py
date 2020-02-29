@@ -4,7 +4,7 @@
   @benleb / https://github.com/benleb/ad-automoli
 """
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 from datetime import time
 from typing import Any, Dict, List, Optional, Set, Union
