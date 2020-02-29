@@ -1,45 +1,20 @@
 """AutoMoLi.
    Automatic Motion Lights
 
-  https://github.com/benleb/ad-automoli
-
-  config example
-  all things can be omitted except the room and delay
-
-bathroom_lights:
-  module: automoli
-  class: AutoMoLi
-  room: bad
-  delay: 300
-  daytimes:
-    - { starttime: "05:30", name: morning, light: 45 }
-    - { starttime: "07:30", name: day, light: "Work" }
-    - { starttime: "20:30", name: evening, light: 90 }
-    - { starttime: "22:30", name: night, light: 0 }
-  humidity_threshold: 75
-  lights:
-    - light.bad
-  motion:
-    - binary_sensor.motion_sensor_158d000224f441
-  humidity:
-    - sensor.humidity_158d0001b95fb7
+  @benleb / https://github.com/benleb/ad-automoli
 """
-__version__ = "0.5.5"
+
+__version__ = "0.6.0"
 
 from datetime import time
-from importlib import import_module, invalidate_caches
-from sys import version_info
 from typing import Any, Dict, List, Optional, Set, Union
-
-from pkg_resources import parse_requirements as parse
 
 import adapi as adapi
 import hassapi as hass
-from pkg_helper import install_packages, missing_requirements
+
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_VERSION = "0.6.0"
 APP_REQUIREMENTS = {"adutils~=0.4.10"}
 
 ON_ICON = APP_ICON
@@ -64,18 +39,19 @@ KEYWORD_MOTION = "binary_sensor.motion_sensor_"
 KEYWORD_HUMIDITY = "sensor.humidity_"
 KEYWORD_ILLUMINANCE = "sensor.illumination_"
 
-py3_or_higher = version_info.major >= 3
-py37_or_higher = py3_or_higher and version_info.minor >= 7
-py38_or_higher = py3_or_higher and version_info.minor >= 8
-
 
 # install requirements
-missing = missing_requirements(APP_REQUIREMENTS)
-if missing and install_packages(missing):
-    [import_module(req.key) for req in parse(APP_REQUIREMENTS)]
-    invalidate_caches()
+def _install_packages(required: Set[str]) -> bool:
+    """Install packages from PyPi."""
+    from subprocess import run
+    from sys import executable
+    flags = ["--quiet", "--disable-pip-version-check", "--no-cache-dir", "--upgrade"]
+    return run([executable, "-m", "pip", "install", *flags, *required]).returncode == 0
 
-from adutils import ADutils, hl  # noqa
+
+_install_packages(APP_REQUIREMENTS)
+
+from adutils import ADutils, hl, py37_or_higher  # noqa # isort:skip
 
 
 class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
@@ -86,7 +62,8 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
         self.adu = ADutils(APP_NAME, config={}, icon=APP_ICON, ad=self)
 
         # python version check
-        assert py37_or_higher
+        if not py37_or_higher:
+            raise ValueError
 
         # set room
         self.room = str(self.args.get("room"))
@@ -359,6 +336,12 @@ class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
 
     def lights_off(self, kwargs: Dict[str, Any]) -> None:
         """Turn off the lights."""
+
+        # check if automoli is disabled via home assistant entity
+        if self.get_state(self.disable_switch_entity) == "off":
+            self.adu.log(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+            return
+
         blocker: Any = None
 
         if self.thresholds["humidity"]:
