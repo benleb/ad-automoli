@@ -9,7 +9,6 @@ __version__ = "0.6.0"
 from datetime import time
 from typing import Any, Dict, List, Optional, Set, Union
 
-import adapi as adapi
 import hassapi as hass
 
 
@@ -54,7 +53,7 @@ _install_packages(APP_REQUIREMENTS)
 from adutils import ADutils, hl, py37_or_higher  # noqa # isort:skip
 
 
-class AutoMoLi(hass.Hass, adapi.ADAPI):  # type: ignore
+class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
     def initialize(self) -> None:
