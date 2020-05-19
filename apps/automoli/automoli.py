@@ -147,11 +147,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for sensor in self.sensors["motion"]:
 
             # listen to xiaomi sensors by default
-            if not any([self.states["motion_on"], self.states["motion_off"]]):
+            if not any((self.states["motion_on"], self.states["motion_off"])):
                 self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
 
             # on/off-only sensors without events on every motion
-            elif all([self.states["motion_on"], self.states["motion_off"]]):
+            elif all((self.states["motion_on"], self.states["motion_off"])):
                 self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"])
                 self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"])
 
@@ -187,7 +187,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     def motion_cleared(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # starte the timer if motion is cleared
-        if all([self.get_state(sensor) == self.states["motion_off"] for sensor in self.sensors["motion"]]):
+        if all((self.get_state(sensor) == self.states["motion_off"] for sensor in self.sensors["motion"])):
             # all motion sensors off, starting timer
             self.refresh_timer()
         else:
@@ -218,7 +218,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             return
 
         # turn on the lights if not already
-        if not any([self.get_state(light) == "on" for light in self.lights]):
+        if not any((self.get_state(light) == "on" for light in self.lights)):
             self.lights_on()
         else:
             self.lg(
@@ -328,7 +328,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
         else:
             self.cancel_timer(self._handle)
-            if any([(self.get_state(entity)) == "on" for entity in self.lights]):
+            if any(((self.get_state(entity)) == "on" for entity in self.lights)):
                 for entity in self.lights:
                     self.turn_off(entity)
                 self.lg(
@@ -356,7 +356,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             dt_is_hue_group = (
                 isinstance(dt_light_setting, str)
                 and not dt_light_setting.startswith("scene.")
-                and any([self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights])
+                and any((self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights))
             )
 
             dt_start: time
