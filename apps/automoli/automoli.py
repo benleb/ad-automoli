@@ -414,8 +414,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg("")
         self.lg(f"{hl(APP_NAME)}{room}", icon=self.icon)
-        self.lg(f"{hl(self.get_now())}{room}", icon=self.icon)
-        self.lg(f"{hl(self.time())}{room}", icon=self.icon)
         self.lg("")
 
         listeners = self.config.pop("listeners", None)
