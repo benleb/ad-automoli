@@ -74,7 +74,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     def lg(self, msg: str, *args: Any, icon: Optional[str] = None, repeat: int = 1, **kwargs: Any) -> None:
         kwargs.setdefault("ascii_encode", False)
         message = f"{f'{icon} ' if icon else ' '}{msg}"
-        [self.log(message, *args, **kwargs) for _ in range(repeat)]
+        _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
 
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
@@ -280,7 +280,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         elif isinstance(self.active["light_setting"], int):
 
             if self.active["light_setting"] == 0:
-                self.lights_off(dict())
+                self.lights_off({})
 
             else:
                 for entity in self.lights:
