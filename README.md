@@ -90,7 +90,7 @@ key | optional | type | default | description
 `module` | False | string | automoli | The module name of the app.
 `class` | False | string | AutoMoLi | The name of the Class.
 `room` | False | string | | The "room" used to find matching sensors/light
-~~`disable_switch_entity` | True | string | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)~~ *replaced by `disable_switch_entities`*
+~~`disable_switch_entity`~~ | ~~True~~ | ~~string~~ | | ~~A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)~~ *replaced by `disable_switch_entities`*
 `disable_switch_entities` | True | list/string | | One or more Home Assistant Entities as switch for AutoMoLi. If the state of **any** entity is *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`
 `motion_event` | True | string | | *Please update your config to use **motion_state_on/off***
