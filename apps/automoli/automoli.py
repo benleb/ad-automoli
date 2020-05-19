@@ -4,7 +4,7 @@
   @benleb / https://github.com/benleb/ad-automoli
 """
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 from collections import defaultdict
 from datetime import time
