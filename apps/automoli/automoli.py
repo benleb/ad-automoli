@@ -8,14 +8,15 @@ __version__ = "0.6.1"
 
 from collections import defaultdict
 from datetime import time
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Union
+from pprint import pformat
+from sys import version_info
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
-APP_REQUIREMENTS = {"adutils~=0.4.12"}
 
 ON_ICON = APP_ICON
 OFF_ICON = "🌑"
@@ -52,36 +53,41 @@ SENSORS_OPTIONAL = ["humidity", "illuminance"]
 RANDOMIZE_SEC = 5
 
 
-# install requirements
-def _install_packages(required: Set[str]) -> bool:
-    """Install packages from PyPi."""
-    from subprocess import run  # nosec
-    from sys import executable
-
-    flags = ["--quiet", "--disable-pip-version-check", "--no-cache-dir", "--upgrade"]
-    return run([executable, "-m", "pip", "install", *flags, *required]).returncode == 0
+# version checks
+py3_or_higher = version_info.major >= 3
+py37_or_higher = py3_or_higher and version_info.minor >= 7
+py38_or_higher = py3_or_higher and version_info.minor >= 8
 
 
-_install_packages(APP_REQUIREMENTS)
+def hl(text: Union[int, float, str]) -> str:
+    return f"\033[1m{text}\033[0m"
 
-from adutils import ADutils, hl, py37_or_higher, py38_or_higher  # noqa # isort:skip
+
+def hl_entity(entity: str) -> str:
+    domain, entity = entity.split(".")
+    return f"{domain}.{hl(entity)}"
 
 
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
+    def lg(self, msg: str, *args: Any, icon: Optional[str] = None, repeat: int = 1, **kwargs: Any) -> None:
+        kwargs.setdefault("ascii_encode", False)
+        message = f"{f'{icon} ' if icon else ' '}{msg}"
+        [self.log(message, *args, **kwargs) for _ in range(repeat)]
+
     def initialize(self) -> None:
         """Initialize a room with AutoMoLi."""
-        self.adu = ADutils(APP_NAME, config={}, icon=APP_ICON, ad=self)
+        self.icon = APP_ICON
 
         # python version check
         if not py38_or_higher:
             icon_alert = "⚠️"
-            self.adu.log("", icon=icon_alert)
-            self.adu.log("")
-            self.adu.log(f"please update to {self.adu.hl('Python >= 3.8.0')}! 🤪", icon=icon_alert)
-            self.adu.log("")
-            self.adu.log("", icon=icon_alert)
+            self.lg("", icon=icon_alert)
+            self.lg("")
+            self.lg(f"please update to {hl('Python >= 3.8.0')}! 🤪", icon=icon_alert)
+            self.lg("")
+            self.lg("", icon=icon_alert)
         if not py37_or_higher:
             raise ValueError
 
@@ -125,15 +131,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # requirements check
         if not self.lights or not self.sensors["motion"]:
-            raise ValueError(
-                f"No lights/sensors given/found, sorry! ('{KEYWORD_LIGHTS}'/'{KEYWORD_MOTION}')"
-            )
+            raise ValueError(f"No lights/sensors given/found, sorry! ('{KEYWORD_LIGHTS}'/'{KEYWORD_MOTION}')")
 
         # enumerate optional sensors & disable optional features if sensors are not available
         for sensor_type in SENSORS_OPTIONAL:
-            self.sensors[sensor_type] = set(
-                self.args.get(sensor_type, self.find_sensors(KEYWORDS[sensor_type]))
-            )
+            self.sensors[sensor_type] = set(self.args.get(sensor_type, self.find_sensors(KEYWORDS[sensor_type])))
             if self.thresholds[sensor_type] and not self.sensors[sensor_type]:
                 self.log(f"No {sensor_type} sensors → disabling features based on {sensor_type}.")
                 self.thresholds[sensor_type] = None
@@ -154,8 +156,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"])
 
             self.refresh_timer()
-        #
-        self.adu.show_info(self.args)
+
+        # self.adu.show_info(self.args)
+        self.show_info(self.args)
 
     def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
@@ -175,23 +178,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 else:
                     is_scene = False
 
-                self.adu.log(
+                self.lg(
                     f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
                     f"{'' if is_scene else '%'}, delay: {hl(delay)}sec",
                     icon=DAYTIME_SWITCH_ICON,
                 )
 
-    def motion_cleared(
-        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
-    ) -> None:
+    def motion_cleared(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # starte the timer if motion is cleared
-        if all(
-            [
-                self.get_state(sensor) == self.states["motion_off"]
-                for sensor in self.sensors["motion"]
-            ]
-        ):
+        if all([self.get_state(sensor) == self.states["motion_off"] for sensor in self.sensors["motion"]]):
             # all motion sensors off, starting timer
             self.refresh_timer()
         else:
@@ -199,9 +195,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 # cancelling active timer
                 self.cancel_timer(self._handle)
 
-    def motion_detected(
-        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
-    ) -> None:
+    def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # wrapper function
 
         if self._handle:
@@ -214,23 +208,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
         """Handle motion events."""
-        self.adu.log(
-            f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORD_MOTION, '')}'",
-            level="DEBUG",
+        self.lg(
+            f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORD_MOTION, '')}'", level="DEBUG",
         )
 
         # check if automoli is disabled via home assistant entity
         if self.get_state(self.disable_switch_entity, copy=False) == "off":
-            self.adu.log(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+            self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
             return
 
         # turn on the lights if not already
         if not any([self.get_state(light) == "on" for light in self.lights]):
             self.lights_on()
         else:
-            self.adu.log(
-                f"light in {self.room.capitalize()} already on → refreshing the timer",
-                level="DEBUG",
+            self.lg(
+                f"light in {self.room.capitalize()} already on → refreshing the timer", level="DEBUG",
             )
 
         if event != "state_changed_detection":
@@ -251,23 +243,18 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     if float(self.get_state(sensor)) >= self.thresholds["illuminance"]:
                         blocker.append(sensor)
                 except ValueError as error:
-                    self.adu.log(
-                        f"could not parse illuminance '{self.get_state(sensor)}' from "
-                        f"'{sensor}': {error}"
-                    )
+                    self.lg(f"could not parse illuminance '{self.get_state(sensor)}' from " f"'{sensor}': {error}")
                     return
 
             if blocker:
-                self.adu.log(f"According to {hl(' '.join(blocker))} its already bright enough")
+                self.lg(f"According to {hl(' '.join(blocker))} its already bright enough")
                 return
 
         if isinstance(self.active["light_setting"], str):
 
             for entity in self.lights:
 
-                if self.active["is_hue_group"] and self.get_state(
-                    entity_id=entity, attribute="is_hue_group"
-                ):
+                if self.active["is_hue_group"] and self.get_state(entity_id=entity, attribute="is_hue_group"):
                     self.call_service(
                         "hue/hue_activate_scene",
                         group_name=self.friendly_name(entity),
@@ -283,7 +270,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 # self.turn_on(item)
                 self.call_service("homeassistant/turn_on", entity_id=item)
 
-            self.adu.log(
+            self.lg(
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                 f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: "
                 f"{hl(self.active['light_setting'].replace('scene.', ''))}",
@@ -301,28 +288,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         self.call_service("homeassistant/turn_on", entity_id=entity)
                     else:
                         self.call_service(
-                            "homeassistant/turn_on",
-                            entity_id=entity,
-                            brightness_pct=self.active["light_setting"],
+                            "homeassistant/turn_on", entity_id=entity, brightness_pct=self.active["light_setting"],
                         )
 
-                        self.adu.log(
+                        self.lg(
                             f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                             f"brightness: {hl(self.active['light_setting'])}%",
                             icon=ON_ICON,
                         )
 
         else:
-            raise ValueError(
-                f"invalid brightness/scene: {self.active['light_setting']!s} " f"in {self.room}"
-            )
+            raise ValueError(f"invalid brightness/scene: {self.active['light_setting']!s} " f"in {self.room}")
 
     def lights_off(self, kwargs: Dict[str, Any]) -> None:
         """Turn off the lights."""
 
         # check if automoli is disabled via home assistant entity
         if self.get_state(self.disable_switch_entity, copy=False) == "off":
-            self.adu.log(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+            self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
             return
 
         blocker: List[str] = []
@@ -337,7 +320,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # turn off if not blocked
         if blocker:
             self.refresh_timer()
-            self.adu.log(
+            self.lg(
                 f"🛁 no motion in {hl(self.room.capitalize())} since "
                 f"{hl(self.active['delay'])}s → "
                 f"but {hl(float(self.get_state(blocker)))}%RH > "
@@ -348,7 +331,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if any([(self.get_state(entity)) == "on" for entity in self.lights]):
                 for entity in self.lights:
                     self.turn_off(entity)
-                self.adu.log(
+                self.lg(
                     f"no motion in {hl(self.room.capitalize())} since "
                     f"{hl(self.active['delay'])}s → turned {hl(f'off')}",
                     icon=OFF_ICON,
@@ -359,8 +342,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         return [
             sensor
             for sensor in self.get_state()
-            if keyword in sensor
-            and self.room in (self.friendly_name(sensor)).lower().replace("ü", "u")
+            if keyword in sensor and self.room in (self.friendly_name(sensor)).lower().replace("ü", "u")
         ]
 
     def build_daytimes(self, daytimes: List[Any]) -> Optional[List[Dict[str, Union[int, str]]]]:
@@ -374,12 +356,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             dt_is_hue_group = (
                 isinstance(dt_light_setting, str)
                 and not dt_light_setting.startswith("scene.")
-                and any(
-                    [
-                        self.get_state(entity_id=entity, attribute="is_hue_group")
-                        for entity in self.lights
-                    ]
-                )
+                and any([self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights])
             )
 
             dt_start: time
@@ -398,16 +375,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
 
             # info about next daytime
-            next_dt_start = time.fromisoformat(
-                str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
-            )
+            next_dt_start = time.fromisoformat(str(daytimes[(idx + 1) % len(daytimes)].get("starttime")))
 
             # collect all start times for sanity check
             if dt_start in starttimes:
-                raise ValueError(
-                    f"Start times of all daytimes have to be unique! "
-                    f"Duplicate found: {dt_start}",
-                )
+                raise ValueError(f"Start times of all daytimes have to be unique! " f"Duplicate found: {dt_start}",)
 
             starttimes.add(dt_start)
 
@@ -426,3 +398,82 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
 
         return daytimes
+
+    def show_info(self, config: Optional[Dict[str, Any]] = None) -> None:
+        # check if a room is given
+        if config:
+            self.config = config
+
+        if not self.config:
+            self.lg("no configuration available", icon="‼️", level="ERROR")
+            return
+
+        room = ""
+        if "room" in self.config:
+            room = f" - {hl(self.config['room'].capitalize())}"
+
+        self.lg("")
+        self.lg(f"{hl(APP_NAME)}{room}", icon=self.icon)
+        self.lg(f"{hl(self.get_now())}{room}", icon=self.icon)
+        self.lg(f"{hl(self.time())}{room}", icon=self.icon)
+        self.lg("")
+
+        listeners = self.config.pop("listeners", None)
+
+        for key, value in self.config.items():
+
+            # hide "internal keys" when displaying config
+            if key in ["module", "class"] or key.startswith("_"):
+                continue
+
+            if isinstance(value, list):
+                self.print_collection(key, value, 2)
+            elif isinstance(value, dict):
+                self.print_collection(key, value, 2)
+            else:
+                self._print_cfg_setting(key, value, 2)
+
+        if listeners:
+            self.lg("  event listeners:")
+            for listener in sorted(listeners):
+                self.lg(f"    - {hl(listener)}")
+
+        self.lg("")
+
+    def print_collection(self, key: str, collection: Iterable[Any], indentation: int = 2) -> None:
+
+        self.log(f"{indentation * ' '}{key}:")
+        indentation = indentation + 2
+
+        for item in collection:
+            indent = indentation * " "
+
+            if isinstance(item, dict):
+                if "name" in item:
+                    self.print_collection(item.pop("name", ""), item, indentation)
+                else:
+                    self.log(f"{indent}{hl(pformat(item, compact=True))}")
+
+            elif isinstance(collection, dict):
+                self._print_cfg_setting(item, collection[item], indentation)
+
+            else:
+                self.log(f"{indent}- {hl(item)}")
+
+    def _print_cfg_setting(self, key: str, value: Union[int, str], indentation: int) -> None:
+        unit = prefix = ""
+        indent = indentation * " "
+
+        # legacy way
+        if key == "delay" and isinstance(value, int):
+            unit = "min"
+            min_value = f"{int(value / 60)}:{int(value % 60):02d}"
+            self.log(f"{indent}{key}: {prefix}{hl(min_value)}{unit} ~≈ " f"{hl(value)}sec")
+
+        else:
+            if "_units" in self.config and key in self.config["_units"]:
+                unit = self.config["_units"][key]
+            if "_prefixes" in self.config and key in self.config["_prefixes"]:
+                prefix = self.config["_prefixes"][key]
+
+            self.log(f"{indent}{key}: {prefix}{hl(value)}{unit}")
