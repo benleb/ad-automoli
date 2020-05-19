@@ -107,7 +107,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # on/off switch via input.boolean
-        self.disable_switch_entity = self.args.get("disable_switch_entity")
+        self.disable_switch_entities: Set[str] = self.args.get("disable_switch_entities", set())
+        # stay compatible to the old setting
+        if (disable_switch_entity := self.args.get("disable_switch_entity")):
+            self.disable_switch_entities.add(disable_switch_entity)
 
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
@@ -213,9 +216,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
 
         # check if automoli is disabled via home assistant entity
-        if self.get_state(self.disable_switch_entity, copy=False) == "off":
-            self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+        if self.is_disabled():
             return
+        # if self.get_state(self.disable_switch_entity, copy=False) == "off":
+        #     self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+        #     return
 
         # turn on the lights if not already
         if not any((self.get_state(light) == "on" for light in self.lights)):
@@ -233,6 +238,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.cancel_timer(self._handle)
         if self.active["delay"] != 0:
             self._handle = self.run_in(self.lights_off, self.active["delay"])
+
+    def is_disabled(self) -> bool:
+        """check if automoli is disabled via home assistant entity"""
+        for entity in self.disable_switch_entities:
+            if self.get_state(entity, copy=False) == "off" or not self.get_state(entity, copy=False):
+                self.lg(f"AutoMoLi disabled by {entity}",)
+                return True
+
+        return False
 
     def lights_on(self) -> None:
         """Turn on the lights."""
@@ -304,9 +318,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn off the lights."""
 
         # check if automoli is disabled via home assistant entity
-        if self.get_state(self.disable_switch_entity, copy=False) == "off":
-            self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+        if self.is_disabled():
             return
+        # if self.get_state(self.disable_switch_entity, copy=False) == "off":
+        #     self.lg(f"AutoMoLi disabled via {self.disable_switch_entity}",)
+        #     return
 
         blocker: List[str] = []
 

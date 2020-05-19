@@ -23,7 +23,8 @@ Use [HACS](https://github.com/custom-components/hacs) or [download](https://gith
 * This must be loaded/configured for every **`room`** separately, see example configuration.
 
 ## Auto Detection of Lights and sensors
-* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically. 
+
+* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically.
 Manually configured entities take precedence.
 
 ## App configuration
@@ -35,7 +36,9 @@ livingroom:
   module: automoli
   class: AutoMoLi
   room: livingroom
-  disable_switch_entity: input_boolean.automoli
+  disable_switch_entities:
+    - input_boolean.automoli
+    - input_boolean.disable_my_house
   delay: 600
   daytimes:
 #This rule "morning" uses a scene, the scene.livingroom_morning Home Assistant scene will be used
@@ -55,7 +58,7 @@ livingroom:
   motion:
     - binary_sensor.motion_sensor_153d000224f421
     - binary_sensor.motion_sensor_128d4101b95fb7
-#See below for info on humidity    
+#See below for info on humidity
   humidity:
     - sensor.humidity_128d4101b95fb7
 
@@ -63,7 +66,6 @@ bathroom:
   module: automoli
   class: AutoMoLi
   room: bathroom
-  disable_switch_entity: input_boolean.automoli
   delay: 180
   motion_state_on: "on"
   motion_state_off: "off"
@@ -72,7 +74,7 @@ bathroom:
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
     - { starttime: "22:30", name: night, light: 0 }
-#As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.    
+#As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.
   humidity:
     - sensor.humidity_128d4101b95fb7
   humidity_threshold: 75
@@ -88,7 +90,8 @@ key | optional | type | default | description
 `module` | False | string | automoli | The module name of the app.
 `class` | False | string | AutoMoLi | The name of the Class.
 `room` | False | string | | The "room" used to find matching sensors/light
-`disable_switch_entity` | True | str | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
+~~`disable_switch_entity` | True | string | | A Home Assistant Entity as switch for AutoMoLi. If the state of the entity if *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)~~ *replaced by `disable_switch_entities`*
+`disable_switch_entities` | True | list/string | | One or more Home Assistant Entities as switch for AutoMoLi. If the state of **any** entity is *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`
 `motion_event` | True | string | | *Please update your config to use **motion_state_on/off***
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
