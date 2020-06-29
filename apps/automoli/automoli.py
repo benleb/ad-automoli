@@ -377,7 +377,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             dt_start: time
             try:
-                dt_start = time.fromisoformat(str(daytime.get("starttime")))
+                dt_start = self.parse_time(daytime.get("starttime") + ":00", aware=True)
             except ValueError as error:
                 raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
 
