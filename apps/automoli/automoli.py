@@ -85,7 +85,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg("")
-            self.lg(f"please update to {hl('Python >= 3.8.0')}! 🤪", icon=icon_alert)
+            self.lg(f"please update to {hl('Python >= 3.8')}! 🤪", icon=icon_alert)
             self.lg("")
             self.lg("", icon=icon_alert)
         if not py37_or_higher:
