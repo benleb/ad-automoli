@@ -339,7 +339,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg(
                 f"🛁 no motion in {hl(self.room.capitalize())} since "
                 f"{hl(self.active['delay'])}s → "
-                f"but {hl(float(self.get_state(blocker)))}%RH > "
+                f"but {hl(float(self.get_state(blocker.pop())))}%RH > "
                 f"{self.thresholds['humidity']}%RH"
             )
         else:
