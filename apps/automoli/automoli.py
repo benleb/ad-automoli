@@ -327,11 +327,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         blocker: List[str] = []
 
         if self.thresholds["humidity"]:
-            blocker = [
-                sensor
-                for sensor in self.sensors["humidity"]
-                if float(self.get_state(sensor)) >= self.thresholds["humidity"]
-            ]
+            for sensor in self.sensors["humidity"]:
+                try:
+                    current_humidity = float(self.get_state(sensor))
+                except ValueError:
+                    continue
+
+                if current_humidity >= self.thresholds["humidity"]:
+                    blocker.append(sensor)
 
         # turn off if not blocked
         if blocker:
