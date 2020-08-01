@@ -138,7 +138,18 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # enumerate optional sensors & disable optional features if sensors are not available
         for sensor_type in SENSORS_OPTIONAL:
-            self.sensors[sensor_type] = set(self.args.get(sensor_type, self.find_sensors(KEYWORDS[sensor_type])))
+
+            self.sensors[sensor_type] = set()
+            sensors = self.args.get(sensor_type, self.find_sensors(KEYWORDS[sensor_type]))
+
+            if (
+                (sensors := self.args.get(sensor_type, self.find_sensors(KEYWORDS[sensor_type])))
+                and type(sensors) is str
+            ):
+                self.sensors[sensor_type].add(sensors)
+            else:
+                self.sensors[sensor_type] |= set(sensors)
+
             if self.thresholds[sensor_type] and not self.sensors[sensor_type]:
                 self.log(f"No {sensor_type} sensors → disabling features based on {sensor_type}.")
                 self.thresholds[sensor_type] = None
