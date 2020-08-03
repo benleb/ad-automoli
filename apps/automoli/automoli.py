@@ -115,8 +115,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
 
-        # lights_off callback handle
-        self._handle = None
+        # lights_off callback handles
+        self.handles: Set[str] = set()
 
         # define light entities switched by automoli
         self.lights: Set[str] = self.args.get("lights", set())
@@ -144,7 +144,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self.sensors[sensor_type] = set(list(sensors))
 
             else:
-                if self.thresholds[sensor_type]:  # and not self.sensors[sensor_type]:
+                if self.thresholds[sensor_type]:
                     self.log(f"No {sensor_type} sensors → disabling features based on {sensor_type}.")
                     self.thresholds[sensor_type] = None
 
@@ -201,15 +201,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # all motion sensors off, starting timer
             await self.refresh_timer()
         else:
-            if self._handle:
-                # cancelling active timer
-                await self.cancel_timer(self._handle)
+            # cancel scheduled callbacks
+            _ = [await self.cancel_timer(handle) for handle in self.handles]
+            self.handles.clear()
 
-    def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
+    async def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # wrapper function
-        if self._handle:
-            # cancelling active timer
-            self.cancel_timer(self._handle)
+
+        # cancel scheduled callbacks
+        _ = [await self.cancel_timer(handle) for handle in self.handles]
+        self.handles.clear()
 
         # calling motion event handler
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
@@ -236,16 +237,18 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if event != "state_changed_detection":
             await self.refresh_timer()
 
-    async def refresh_timer(self) -> None:
+    async def refresh_timer(self) -> Optional[Set[str]]:
         """Refresh delay timer."""
-        # self.lg(f"refresh_timer A: {self._handle = } | {await self.info_timer(self._handle) = }", icon="⚠️")
 
-        await self.cancel_timer(self._handle)
+        # cancel scheduled callbacks
+        _ = [await self.cancel_timer(handle) for handle in self.handles]
+        self.handles.clear()
+
         if self.active["delay"] != 0:
-            self._handle = await self.run_in(self.lights_off, self.active["delay"])
-            # self.lg(f"refresh_timer B: {self._handle = } | {await self.info_timer(self._handle) = }\n", icon="⚠️")
+            # schedule new callback
+            self.handles.add(await self.run_in(self.lights_off, self.active["delay"]))
 
-        return self._handle
+        return self.handles
 
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
@@ -289,7 +292,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if self.active["light_setting"].startswith("scene."):
                     item = self.active["light_setting"]
 
-                # self.turn_on(item)
                 await self.call_service("homeassistant/turn_on", entity_id=item)
 
             self.lg(
@@ -351,11 +353,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 f"{hl(self.thresholds['humidity'])}%RH"
             )
         else:
-            await self.cancel_timer(self._handle)
-            if any([(await self.get_state(entity)) == "on" for entity in self.lights]):
+            _ = [await self.cancel_timer(handle) for handle in self.handles]
+            self.handles.clear()
+
+            if any([await self.get_state(entity) == "on" for entity in self.lights]):
                 for entity in self.lights:
                     await self.call_service("homeassistant/turn_off", entity_id=entity)
-                    # self.turn_off(entity)
                 self.lg(
                     f"no motion in {hl(self.room.capitalize())} since "
                     f"{hl(self.active['delay'])}s → turned {hl(f'off')}",
