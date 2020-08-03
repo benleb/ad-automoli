@@ -107,7 +107,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # on/off switch via input.boolean
-        self.disable_switch_entities: Set[str] = self.args.get("disable_switch_entities", set())
+        self.disable_switch_entities: Set[str] = set()
+        if disable_switch_entities := self.args.get("disable_switch_entities"):
+            if isinstance(disable_switch_entities, str):
+                disable_switch_entities = [disable_switch_entities]
+            self.disable_switch_entities = set(disable_switch_entities)
+
         # stay compatible to the old setting
         if disable_switch_entity := self.args.get("disable_switch_entity"):
             self.disable_switch_entities.add(disable_switch_entity)
@@ -165,7 +170,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             await self.refresh_timer()
 
-        self.args.update({"lights": self.lights, "sensors": self.sensors, "room": self.room.capitalize()})
+        self.args.update({"lights": self.lights, "sensors": self.sensors, "room": self.room.capitalize(), "disable_switch_entities": self.disable_switch_entities})
 
         # show parsed config
         self.show_info(self.args)
@@ -202,14 +207,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.refresh_timer()
         else:
             # cancel scheduled callbacks
-            _ = [await self.cancel_timer(handle) for handle in self.handles]
+            _ = [await self.cancel_timer(handle) for handle in self.handles.copy()]
             self.handles.clear()
 
     async def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # wrapper function
 
         # cancel scheduled callbacks
-        _ = [await self.cancel_timer(handle) for handle in self.handles]
+        _ = [await self.cancel_timer(handle) for handle in self.handles.copy()]
         self.handles.clear()
 
         # calling motion event handler
@@ -241,7 +246,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Refresh delay timer."""
 
         # cancel scheduled callbacks
-        _ = [await self.cancel_timer(handle) for handle in self.handles]
+        _ = [await self.cancel_timer(handle) for handle in self.handles.copy()]
         self.handles.clear()
 
         if self.active["delay"] != 0:
@@ -355,7 +360,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 f"{hl(self.thresholds['humidity'])}%RH"
             )
         else:
-            _ = [await self.cancel_timer(handle) for handle in self.handles]
+            _ = [await self.cancel_timer(handle) for handle in self.handles.copy()]
             self.handles.clear()
 
             if any([await self.get_state(entity) == "on" for entity in self.lights]):
