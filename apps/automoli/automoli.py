@@ -297,7 +297,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg(
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                 f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: "
-                f"{hl(self.active['light_setting'].replace('scene.', ''))}",
+                f"{hl(self.active['light_setting'].replace('scene.', ''))}"
+                f" | delay: {hl(self.active['delay'])}sec",
                 icon=ON_ICON,
             )
 
@@ -317,7 +318,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                         self.lg(
                             f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
-                            f"brightness: {hl(self.active['light_setting'])}%",
+                            f"brightness: {hl(self.active['light_setting'])}%"
+                            f" | delay: {hl(self.active['delay'])}sec",
                             icon=ON_ICON,
                         )
 
@@ -348,7 +350,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.refresh_timer()
             self.lg(
                 f"🛁 no motion in {hl(self.room.capitalize())} since "
-                f"{hl(self.active['delay'])}s → "
+                f"{hl(self.active['delay'])}sec → "
                 f"but {hl(float(await self.get_state(blocker.pop())))}%RH > "
                 f"{hl(self.thresholds['humidity'])}%RH"
             )
@@ -361,7 +363,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     await self.call_service("homeassistant/turn_off", entity_id=entity)
                 self.lg(
                     f"no motion in {hl(self.room.capitalize())} since "
-                    f"{hl(self.active['delay'])}s → turned {hl(f'off')}",
+                    f"{hl(self.active['delay'])}sec → turned {hl(f'off')}",
                     icon=OFF_ICON,
                 )
 
