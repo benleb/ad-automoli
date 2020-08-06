@@ -1,6 +1,6 @@
 # AutoMoLi - **Auto**matic **Mo**tion **Li**ghts
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+![python_badge](https://img.shields.io/static/v1?label=python&message=3.8%20|%203.9&color=blue&style=flat) [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 
 Fully *automatic light management* based on motion as [AppDaemon](https://github.com/home-assistant/appdaemon) app.  
 
