@@ -97,7 +97,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg("")
-            self.lg(f"please update to {hl('Python >= 3.8')}! 🤪", icon=icon_alert)
+            self.lg(f" please update to {hl('Python >= 3.8')}! 🤪", icon=icon_alert)
             self.lg("")
             self.lg("", icon=icon_alert)
         if not py37_or_higher:
@@ -120,13 +120,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # on/off switch via input.boolean
         self.disable_switch_entities: Set[str] = self.listr(self.args.get("disable_switch_entities"))
-        # if disable_switch_entities := self.listr(self.args.get("disable_switch_entities")):
-        #     if isinstance(disable_switch_entities, str):
-        #         disable_switch_entities = [disable_switch_entities]
-        #     self.disable_switch_entities = set(disable_switch_entities)
 
         # stay compatible to the old setting
-        if disable_switch_entity := self.args.get("disable_switch_entity"):
+        if disable_switch_entity := str(self.args.get("disable_switch_entity", None)):
+            icon_alert = "⚠️"
+            self.lg("", icon=icon_alert)
+            self.lg(f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert)
+            self.lg("", icon=icon_alert)
             self.disable_switch_entities.add(disable_switch_entity)
 
         # currently active daytime settings
