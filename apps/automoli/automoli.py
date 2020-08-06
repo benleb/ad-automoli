@@ -129,6 +129,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert
             )
             self.lg("", icon=icon_alert)
+            self.args.pop("disable_switch_entity")
             # self.disable_switch_entities.add(disable_switch_entity)
 
         # currently active daytime settings
