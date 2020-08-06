@@ -122,7 +122,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.disable_switch_entities: Set[str] = self.listr(self.args.get("disable_switch_entities"))
 
         # stay compatible to the old setting
-        if str(self.args.get("disable_switch_entity", None)):
+        if "disable_switch_entity" in self.args:
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg(
