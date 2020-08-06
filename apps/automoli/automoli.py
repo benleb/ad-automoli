@@ -125,7 +125,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if disable_switch_entity := str(self.args.get("disable_switch_entity", None)):
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
-            self.lg(f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert)
+            self.lg(
+                f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert
+            )
             self.lg("", icon=icon_alert)
             self.disable_switch_entities.add(disable_switch_entity)
 
@@ -281,7 +283,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
         for entity in self.disable_switch_entities:
-            if await self.get_state(entity, copy=False) == "off" or not await self.get_state(entity, copy=False):
+            if (state := await self.get_state(entity, copy=False)) and state == "off":
                 self.lg(f"{APP_NAME} disabled by {entity}",)
                 return True
 
