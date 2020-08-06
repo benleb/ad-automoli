@@ -122,14 +122,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.disable_switch_entities: Set[str] = self.listr(self.args.get("disable_switch_entities"))
 
         # stay compatible to the old setting
-        if disable_switch_entity := str(self.args.get("disable_switch_entity", None)):
+        if str(self.args.get("disable_switch_entity", None)):
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg(
                 f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert
             )
             self.lg("", icon=icon_alert)
-            self.disable_switch_entities.add(disable_switch_entity)
+            # self.disable_switch_entities.add(disable_switch_entity)
 
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
