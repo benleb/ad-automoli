@@ -6,11 +6,10 @@
 
 __version__ = "0.8.1"
 
-from collections import defaultdict
 from datetime import time
 from pprint import pformat
 from sys import version_info
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
@@ -92,6 +91,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Initialize a room with AutoMoLi."""
         self.icon = APP_ICON
 
+        self.args = dict(self.args)
+
         # python version check
         if not py38_or_higher:
             icon_alert = "⚠️"
@@ -119,7 +120,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # on/off switch via input.boolean
-        self.disable_switch_entities: Set[str] = self.listr(self.args.get("disable_switch_entities"))
+        self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
+        self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
         # stay compatible to the old setting
         if "disable_switch_entity" in self.args:
@@ -130,7 +132,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
             self.lg("", icon=icon_alert)
             self.args.pop("disable_switch_entity")
-            # self.disable_switch_entities.add(disable_switch_entity)
 
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
@@ -148,10 +149,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
 
         # sensors
-        self.sensors: DefaultDict[str, Any] = defaultdict(set)
+        self.sensors: Dict[str, Any] = {}
 
         # enumerate sensors for motion detection
-        self.sensors["motion"] = self.listr(self.args.pop("motion", await self.find_sensors(KEYWORD_MOTION)))
+        self.sensors["motion"] = self.listr(self.args.get("motion", await self.find_sensors(KEYWORD_MOTION)))
 
         # requirements check
         if not self.lights or not self.sensors["motion"]:
@@ -162,7 +163,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
                 self.sensors[sensor_type] = self.listr(
-                    self.args.pop(sensor_type, await self.find_sensors(KEYWORDS[sensor_type]))
+                    self.args.get(sensor_type, await self.find_sensors(KEYWORDS[sensor_type]))
                 )
 
             else:
@@ -194,9 +195,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "lights": self.lights,
                 "sensors": self.sensors,
                 "room": self.room.capitalize(),
-                "disable_switch_entities": self.disable_switch_entities,
+                "disable_hue_groups": self.disable_hue_groups,
             }
         )
+
+        if self.disable_switch_entities:
+            self.args.update({"disable_switch_entities": self.disable_switch_entities})
 
         # show parsed config
         self.show_info(self.args)
@@ -292,11 +296,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
-        if "illuminance" in self.thresholds:
+        if illuminance_threshold := self.thresholds.get("illuminance"):
             blocker = []
             for sensor in self.sensors["illuminance"]:
                 try:
-                    if float(await self.get_state(sensor)) >= self.thresholds["illuminance"]:
+                    if float(await self.get_state(sensor)) >= illuminance_threshold:
                         blocker.append(sensor)
                 except ValueError as error:
                     self.lg(f"could not parse illuminance '{await self.get_state(sensor)}' from '{sensor}': {error}")
@@ -366,14 +370,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         blocker: List[str] = []
 
-        if "humidity" in self.thresholds:
+        # if "humidity" in self.thresholds:
+        if humidity_threshold := self.thresholds.get("humidity"):
             for sensor in self.sensors["humidity"]:
                 try:
                     current_humidity = float(await self.get_state(sensor))
                 except ValueError:
                     continue
 
-                if current_humidity >= self.thresholds["humidity"]:
+                if current_humidity >= humidity_threshold:
                     blocker.append(sensor)
 
         # turn off if not blocked
@@ -414,11 +419,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
             dt_delay = daytime.get("delay", delay)
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
-            dt_is_hue_group = (
-                isinstance(dt_light_setting, str)
-                and not dt_light_setting.startswith("scene.")
-                and any((await self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights))
-            )
+            if self.disable_hue_groups:
+                dt_is_hue_group = False
+            else:
+                dt_is_hue_group = (
+                    isinstance(dt_light_setting, str)
+                    and not dt_light_setting.startswith("scene.")
+                    and any([await self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights])
+                )
 
             dt_start: time
             try:

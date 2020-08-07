@@ -92,6 +92,7 @@ key | optional | type | default | description
 `room` | False | string | | The "room" used to find matching sensors/light
 ~~`disable_switch_entity`~~ | ~~True~~ | ~~string~~ | | **replaced by `disable_switch_entities`**
 `disable_switch_entities` | True | list/string | | One or more Home Assistant Entities as switch for AutoMoLi. If the state of **any** entity is *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
+`disable_hue_groups` | False | boolean | | Disable the use of Hue Groups/Scenes
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`
 ~~`motion_event`~~ | ~~True~~ | ~~string~~ | | **replaced by `motion_state_on/off`**
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
