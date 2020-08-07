@@ -425,7 +425,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 dt_is_hue_group = (
                     isinstance(dt_light_setting, str)
                     and not dt_light_setting.startswith("scene.")
-                    and any([await self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights])
+                    and any(
+                        [await self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
+                    )
                 )
 
             dt_start: time
