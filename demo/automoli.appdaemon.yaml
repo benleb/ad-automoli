@@ -1,0 +1,15 @@
+appdaemon:
+  latitude: 13.37
+  longitude: 13.37
+  time_zone: "Europe/Amsterdam"
+  elevation: 1337
+  plugins:
+    HASS:
+      type: hass
+      ha_url:
+      token:
+http:
+  url: http://127.0.0.1:5050
+admin:
+api:
+hadashboard:

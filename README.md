@@ -12,6 +12,33 @@ Fully *automatic light management* based on motion as [AppDaemon](https://github
 * supports **illumination sensors** to switch the light just if needed
 * supports **humidity sensors** as blocker (the "*shower case*")
 
+## Try it!
+
+You can try AutoMoLi via [Docker](https://hub.docker.com/r/benleb/automoli) without installing anything! The Image is the default AppDaemon one with AutoMoLi, and a simple default configuration added. See the [AppDaemon Docker Tutorial](https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html) on how to use it in general.  
+
+AutoMoLi is built around `rooms`. For the auto-discovery of your lights and sensors to work, AutoMoLi expects motion sensors and lights including a `room` name. The exact patterns are listed in [Auto-Discovery of Lights and Sensors](#auto-discovery-of-lights-and-sensors) You can set a `room` with the **AUTOMOLI_ROOM** variable in the Docker *run* command.
+
+```bash
+docker run --rm --interactive --tty --name AutoMoLi \
+--env HA_URL="<HA URL>" \
+--env TOKEN="<HA Token>" \
+--env AUTOMOLI_ROOM="bathroom" \
+--ports 5050:5050 \
+benleb/automoli:0.8.2
+```
+
+Port 5050 is opened to give access to the AppDaemon Admin-UI at <http://127.0.0.1:5050>
+
+### Example
+
+To test AutoMoLi in your **Esszimmer** (german for dining room), use `... --env AUTOMOLI_ROOM="esszimmer" ...` in the Docker *run* command.
+
+* AppDaemon will show you its config file on startup: ![cfg](.github/cfg.png)
+
+* If everything works, AutoMoLi will show you the configuration it has parsed, including the discovered sensors: ![cfg-loaded](.github/cfg_loaded.png)
+
+* This is how it looks when AutoMoLi manages your lights: ![running](.github/run.png)
+
 ## Installation
 
 Use [HACS](https://github.com/hacs/integration) or [download](https://github.com/benleb/ad-automoli/releases) the `automoli` directory from inside the `apps` directory here to your local `apps` directory, then add the configuration to enable the `automoli` module.
@@ -22,9 +49,16 @@ Use [HACS](https://github.com/hacs/integration) or [download](https://github.com
 
 * This must be loaded/configured for every **`room`** separately, see example configuration.
 
-## Auto Detection of Lights and sensors
+## Auto-Discovery of Lights and Sensors
 
-* if sensors/lights entities are in this form *sensor.illumination_**`room`***, *binary_sensor.motion_sensor_**`room`*** or *binary_sensor.motion_sensor_**`room`**_something* and *light.**`room`***, AutoMoLi will detect them automatically.
+If sensors/lights entities are in this form:
+
+* ***sensor.illumination_`room`***
+* ***binary_sensor.motion_sensor_`room`***
+* ***binary_sensor.motion_sensor_`room`_something***
+* ***light.`room`***  
+
+AutoMoLi will detect them automatically.
 Manually configured entities take precedence.
 
 ## App configuration
@@ -41,24 +75,24 @@ livingroom:
     - input_boolean.disable_my_house
   delay: 600
   daytimes:
-#This rule "morning" uses a scene, the scene.livingroom_morning Home Assistant scene will be used
+    # This rule "morning" uses a scene, the scene.livingroom_morning Home Assistant scene will be used
     - { starttime: "05:30", name: morning, light: "scene.livingroom_morning" }
     - { starttime: "07:30", name: day, light: "scene.livingroom_working" }
-#This rule"evening" uses a percentage brightness value, and the lights specified in lights: below will be set to 90%
+    # This rule"evening" uses a percentage brightness value, and the lights specified in lights: below will be set to 90%
     - { starttime: "20:30", name: evening, light: 90 }
     - { starttime: "22:30", name: night, light: 20 }
-#This rule has the lights set to 0, so they will no turn on during this time period
+    # This rule has the lights set to 0, so they will no turn on during this time period
     - { starttime: "23:30", name: more_night, light: 0 }
-#If you are using an illuminance sensor you can set the lowest value here that blocks the lights turning on if its already light enough
+  # If you are using an illuminance sensor you can set the lowest value here that blocks the lights turning on if its already light enough
   illuminance_threshold: 100
-#You can specify a light group or list of lights here
+  # You can specify a light group or list of lights here
   lights:
     - light.livingroom
-#You can specify a list of motion sensors here
+  # You can specify a list of motion sensors here
   motion:
     - binary_sensor.motion_sensor_153d000224f421
     - binary_sensor.motion_sensor_128d4101b95fb7
-#See below for info on humidity
+  # See below for info on humidity
   humidity:
     - sensor.humidity_128d4101b95fb7
 
@@ -74,7 +108,7 @@ bathroom:
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
     - { starttime: "22:30", name: night, light: 0 }
-#As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.
+  # As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.
   humidity:
     - sensor.humidity_128d4101b95fb7
   humidity_threshold: 75

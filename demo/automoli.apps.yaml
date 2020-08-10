@@ -1,0 +1,10 @@
+kitchen:
+  module: automoli
+  class: AutoMoLi
+  room: kitchen
+  delay: 120
+  daytimes:
+    - {starttime: "05:30", name: morning, light: 40}
+    - {starttime: "07:15", name: day, light: 100}
+    - {starttime: "19:30", name: evening, light: 70}
+    - {starttime: "22:00", name: night, light: 10}
