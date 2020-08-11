@@ -128,15 +128,20 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
         self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
-        # stay compatible to the old setting
+        # eol of the old option name
         if "disable_switch_entity" in self.args:
             icon_alert = "⚠️"
+            self.lg("", icon=icon_alert)
+            self.lg("", icon=icon_alert)
             self.lg("", icon=icon_alert)
             self.lg(
                 f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert
             )
             self.lg("", icon=icon_alert)
+            self.lg("", icon=icon_alert)
+            self.lg("", icon=icon_alert)
             self.args.pop("disable_switch_entity")
+            return
 
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
