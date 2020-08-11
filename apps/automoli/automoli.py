@@ -92,6 +92,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Initialize a room with AutoMoLi."""
         self.icon = APP_ICON
 
+        # get a real dict for the configuration
         self.args = dict(self.args)
 
         # python version check
@@ -106,18 +107,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
             raise ValueError
 
         # set room
-        self.room = str(self.args.get("room"))
+        self.room = str(self.args.pop("room"))
+
+        # general delay
+        self.delay = int(self.args.pop("delay", DEFAULT_DELAY))
 
         # state values
         self.states = {
-            "motion_on": self.args.get("motion_state_on", None),
-            "motion_off": self.args.get("motion_state_off", None),
+            "motion_on": self.args.pop("motion_state_on", None),
+            "motion_off": self.args.pop("motion_state_off", None),
         }
 
         # threshold values
         self.thresholds = {
-            "humidity": self.args.get("humidity_threshold"),
-            "illuminance": self.args.get("illuminance_threshold"),
+            "humidity": self.args.pop("humidity_threshold", None),
+            "illuminance": self.args.pop("illuminance_threshold", None),
         }
 
         # on/off switch via input.boolean
@@ -138,7 +142,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.active: Dict[str, Union[int, str]] = {}
 
         # define light entities switched by automoli
-        self.lights: Set[str] = self.args.get("lights", set())
+        self.lights: Set[str] = self.args.pop("lights", set())
         if not self.lights:
             room_light_group = f"light.{self.room}"
             if await self.entity_exists(room_light_group):
@@ -150,7 +154,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.sensors: Dict[str, Any] = {}
 
         # enumerate sensors for motion detection
-        self.sensors["motion"] = self.listr(self.args.get("motion", await self.find_sensors(KEYWORD_MOTION)))
+        self.sensors["motion"] = self.listr(self.args.pop("motion", await self.find_sensors(KEYWORD_MOTION)))
 
         # requirements check
         if not self.lights or not self.sensors["motion"]:
@@ -170,7 +174,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
                 self.sensors[sensor_type] = self.listr(
-                    self.args.get(sensor_type, await self.find_sensors(KEYWORDS[sensor_type]))
+                    self.args.pop(sensor_type, await self.find_sensors(KEYWORDS[sensor_type]))
                 )
 
             else:
@@ -182,7 +186,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 del self.thresholds[sensor_type]
 
         # use user-defined daytimes if available
-        await self.build_daytimes(self.args.get("daytimes", DEFAULT_DAYTIMES))
+        daytimes = await self.build_daytimes(self.args.pop("daytimes", DEFAULT_DAYTIMES))
 
         # set up event listener for each sensor
         for sensor in self.sensors["motion"]:
@@ -203,21 +207,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.args.update(
             {
-                "disable_hue_groups": self.disable_hue_groups,
+                "room": self.room.capitalize(),
+                "delay": self.delay,
+                "active_daytime": self.active_daytime,
+                "daytimes": daytimes,
                 "lights": self.lights,
                 "sensors": self.sensors,
-                "room": self.room.capitalize(),
+                "disable_hue_groups": self.disable_hue_groups,
             }
         )
 
         if self.disable_switch_entities:
             self.args.update({"disable_switch_entities": self.disable_switch_entities})
 
-        # get a real dict for the configuration
-        self.cfg = self.args
-
         # show parsed config
-        self.show_info(self.cfg)
+        self.show_info(self.args)
 
         await self.refresh_timer()
 
