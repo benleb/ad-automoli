@@ -126,6 +126,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # on/off switch via input.boolean
         self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
+        self.disable_switch_states: Set[str] = self.listr(self.args.pop("disable_switch_states", set(["off"])))
+
         self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
         # eol of the old option name
@@ -224,6 +226,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         if self.disable_switch_entities:
             self.args.update({"disable_switch_entities": self.disable_switch_entities})
+            self.args.update({"disable_switch_states": self.disable_switch_states})
 
         # show parsed config
         self.show_info(self.args)
@@ -316,7 +319,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
         for entity in self.disable_switch_entities:
-            if (state := await self.get_state(entity, copy=False)) and state == "off":
+            if (state := await self.get_state(entity, copy=False)) and state in self.disable_switch_states:
                 self.lg(f"{APP_NAME} disabled by {entity}",)
                 return True
 
