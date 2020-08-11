@@ -269,13 +269,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.log(f"motion detected: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
 
         # cancel scheduled callbacks
-        handles = deepcopy(self.handles)
-        self.log(f"{self.handles = }")
-        self.log(f"{handles = }")
-        self.handles.clear()
-        [await self.cancel_timer(handle) for handle in handles]
+        await self.clear_handles(deepcopy(self.handles))
 
-        self.log("handles cleared and cancelled all scheduled timers", level="DEBUG")
+        self.lg("handles cleared and cancelled all scheduled timers", level="DEBUG")
 
         # calling motion event handler
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
@@ -299,13 +295,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if event != "state_changed_detection":
             await self.refresh_timer()
 
+    async def clear_handles(self, handles: Set[str]) -> None:
+        """clear scheduled timers/callbacks."""
+        self.handles.clear()
+        [await self.cancel_timer(handle) for handle in handles]
+
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
 
         # cancel scheduled callbacks
-        handles = deepcopy(self.handles)
-        self.handles.clear()
-        [await self.cancel_timer(handle) for handle in handles]
+        await self.clear_handles(deepcopy(self.handles))
 
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
@@ -424,9 +423,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         else:
 
             # cancel scheduled callbacks
-            handles = deepcopy(self.handles)
-            self.handles.clear()
-            [await self.cancel_timer(handle) for handle in handles]
+            await self.clear_handles(deepcopy(self.handles))
 
             if any([await self.get_state(entity) == "on" for entity in self.lights]):
                 for entity in self.lights:
