@@ -12,7 +12,7 @@ Fully *automatic light management* based on motion as [AppDaemon](https://github
 * supports **illumination sensors** to switch the light just if needed
 * supports **humidity sensors** as blocker (the "*shower case*")
 
-## Try it!
+## Try it! On `amd64`, `arm` and `arm64`!
 
 You can try AutoMoLi via [Docker](https://hub.docker.com/r/benleb/automoli) without installing anything! The Image is the default AppDaemon one with AutoMoLi, and a simple default configuration added. See the [AppDaemon Docker Tutorial](https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html) on how to use it in general.  
 
@@ -24,7 +24,7 @@ docker run --rm --interactive --tty --name AutoMoLi \
 --env TOKEN="<HA Token>" \
 --env AUTOMOLI_ROOM="bathroom" \
 --ports 5050:5050 \
-benleb/automoli:0.8.2
+benleb/automoli:latest
 ```
 
 Port 5050 is opened to give access to the AppDaemon Admin-UI at <http://127.0.0.1:5050>
