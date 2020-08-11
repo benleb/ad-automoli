@@ -16,7 +16,7 @@ Fully *automatic light management* based on motion as [AppDaemon](https://github
 
 You can try AutoMoLi via [Docker](https://hub.docker.com/r/benleb/automoli) without installing anything! The Image is the default AppDaemon one with AutoMoLi, and a simple default configuration added. See the [AppDaemon Docker Tutorial](https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html) on how to use it in general.  
 
-AutoMoLi is built around `rooms`. For the auto-discovery of your lights and sensors to work, AutoMoLi expects motion sensors and lights including a `room` name. The exact patterns are listed in [Auto-Discovery of Lights and Sensors](#auto-discovery-of-lights-and-sensors) You can set a `room` with the **AUTOMOLI_ROOM** variable in the Docker *run* command.
+AutoMoLi is built around `rooms`. For the auto-discovery of your lights and sensors to work, AutoMoLi expects motion sensors and lights including a `room` name. The exact patterns are listed in [Auto-Discovery of Lights and Sensors](https://github.com/benleb/ad-automoli#auto-discovery-of-lights-and-sensors) You can set a `room` with the **AUTOMOLI_ROOM** variable in the Docker *run* command.
 
 ```bash
 docker run --rm --interactive --tty --name AutoMoLi \
@@ -33,11 +33,11 @@ Port 5050 is opened to give access to the AppDaemon Admin-UI at <http://127.0.0.
 
 To test AutoMoLi in your **Esszimmer** (german for dining room), use `... --env AUTOMOLI_ROOM="esszimmer" ...` in the Docker *run* command.
 
-* AppDaemon will show you its config file on startup: ![cfg](.github/cfg.png)
+* AppDaemon will show you its config file on startup: ![cfg](https://raw.githubusercontent.com/benleb/ad-automoli/master/.github/cfg.png)
 
-* If everything works, AutoMoLi will show you the configuration it has parsed, including the discovered sensors: ![cfg-loaded](.github/cfg_loaded.png)
+* If everything works, AutoMoLi will show you the configuration it has parsed, including the discovered sensors: ![cfg-loaded](https://raw.githubusercontent.com/benleb/ad-automoli/master/.github/cfg_loaded.png)
 
-* This is how it looks when AutoMoLi manages your lights: ![running](.github/run.png)
+* This is how it looks when AutoMoLi manages your lights: ![running](https://raw.githubusercontent.com/benleb/ad-automoli/master/.github/run.png)
 
 ## Installation
 
