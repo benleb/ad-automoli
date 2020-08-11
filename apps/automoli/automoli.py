@@ -433,6 +433,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     icon=OFF_ICON,
                 )
 
+                # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
+                # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
+                # mod: https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
+                for sensor in self.sensors["motion"]:
+                    await self.set_state(
+                        sensor,
+                        state="off",
+                        attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
+                    )
+
     async def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
         return [
