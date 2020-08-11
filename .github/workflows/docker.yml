@@ -22,4 +22,4 @@ jobs:
           docker buildx build --push \
             --file demo/Dockerfile \
             --tag benleb/automoli:multi-latest \
-            --platform linux/amd64,linux/arm/v7,linux/arm64 .
+            --platform linux/amd64,linux/arm64,linux/arm/v7 .
