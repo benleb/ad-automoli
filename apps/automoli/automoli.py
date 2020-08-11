@@ -512,6 +512,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     def show_info(self, config: Optional[Dict[str, Any]] = None) -> None:
         # check if a room is given
+
         if config:
             self.config = config
 
@@ -521,7 +522,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         room = ""
         if "room" in self.config:
-            room = f" - {hl(self.config['room'].capitalize())}"
+            room = f" · {hl(self.config['room'].capitalize())}"
 
         self.lg("")
         self.lg(f"{hl(APP_NAME)}{room}", icon=self.icon)
@@ -545,23 +546,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if listeners:
             self.lg("  event listeners:")
             for listener in sorted(listeners):
-                self.lg(f"    - {hl(listener)}")
+                self.lg(f"    · {hl(listener)}")
 
         self.lg("")
 
-    def print_collection(self, key: str, collection: Iterable[Any], indentation: int = 2) -> None:
+    def print_collection(self, key: str, collection: Iterable[Any], indentation: int = 0) -> None:
 
-        self.log(f"{indentation * ' '}{key}:")
+        self.lg(f"{indentation * ' '}{key}:")
         indentation = indentation + 2
 
         for item in collection:
             indent = indentation * " "
 
             if isinstance(item, dict):
+
                 if "name" in item:
                     self.print_collection(item.pop("name", ""), item, indentation)
                 else:
-                    self.log(f"{indent}{hl(pformat(item, compact=True))}")
+                    self.lg(f"{indent}{hl(pformat(item, compact=True))}")
 
             elif isinstance(collection, dict):
 
@@ -571,7 +573,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self._print_cfg_setting(item, collection[item], indentation)
 
             else:
-                self.log(f"{indent}- {hl(item)}")
+                self.lg(f"{indent}· {hl(item)}")
 
     def _print_cfg_setting(self, key: str, value: Union[int, str], indentation: int) -> None:
         unit = prefix = ""
@@ -581,7 +583,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if key == "delay" and isinstance(value, int):
             unit = "min"
             min_value = f"{int(value / 60)}:{int(value % 60):02d}"
-            self.log(f"{indent}{key}: {prefix}{hl(min_value)}{unit} ≈ " f"{hl(value)}sec", ascii_encode=False)
+            self.lg(f"{indent}{key}: {prefix}{hl(min_value)}{unit} ≈ " f"{hl(value)}sec", ascii_encode=False)
 
         else:
             if "_units" in self.config and key in self.config["_units"]:
@@ -589,4 +591,4 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if "_prefixes" in self.config and key in self.config["_prefixes"]:
                 prefix = self.config["_prefixes"][key]
 
-            self.log(f"{indent}{key}: {prefix}{hl(value)}{unit}")
+            self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}")
