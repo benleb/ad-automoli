@@ -183,7 +183,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 )
 
             else:
-                self.log(
+                self.lg(
                     f"No {sensor_type} sensors → disabling features based on {sensor_type}"
                     f" - {self.thresholds[sensor_type]}.",
                     level="DEBUG",
@@ -198,12 +198,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             # listen to xiaomi sensors by default
             if not any((self.states["motion_on"], self.states["motion_off"])):
-                self.log("no motion states configured - using event listener", level="DEBUG")
+                self.lg("no motion states configured - using event listener", level="DEBUG")
                 await self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
 
             # on/off-only sensors without events on every motion
             elif all((self.states["motion_on"], self.states["motion_off"])):
-                self.log("both motion states configured - using state listener", level="DEBUG")
+                self.lg("both motion states configured - using state listener", level="DEBUG")
                 await self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"])
                 await self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"])
 
@@ -257,21 +257,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def motion_cleared(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # starte the timer if motion is cleared
-        self.log(f"motion cleared: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
+        self.lg(f"motion cleared: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
 
         if all([await self.get_state(sensor) == self.states["motion_off"] for sensor in self.sensors["motion"]]):
             # all motion sensors off, starting timer
             await self.refresh_timer()
         else:
             # cancel scheduled callbacks
-            handles = deepcopy(self.handles)
-            self.handles.clear()
-            [await self.cancel_timer(handle) for handle in handles]
+            await self.clear_handles(deepcopy(self.handles))
 
     async def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # wrapper function
 
-        self.log(f"motion detected: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
+        self.lg(f"motion detected: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
 
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
@@ -280,7 +278,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # calling motion event handler
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
-        self.log(f"{data = }")
         await self.motion_event("state_changed_detection", data, kwargs)
 
     async def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
@@ -459,11 +456,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def build_daytimes(self, daytimes: List[Any]) -> Optional[List[Dict[str, Union[int, str]]]]:
         starttimes: Set[time] = set()
-        delay = int(self.args.get("delay", DEFAULT_DELAY))
 
         for idx, daytime in enumerate(daytimes):
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
-            dt_delay = daytime.get("delay", delay)
+            dt_delay = daytime.get("delay", self.delay)
             dt_light_setting = daytime.get("light", DEFAULT_LIGHT_SETTING)
             if self.disable_hue_groups:
                 dt_is_hue_group = False
@@ -503,7 +499,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # check if this daytime should ne active now
             if await self.now_is_between(str(dt_start), str(next_dt_start)):
                 await self.switch_daytime(dict(daytime=daytime, initial=True))
-                self.args["active_daytime"] = daytime.get("daytime")
+                self.active_daytime = daytime.get("daytime")
 
             # schedule callbacks for daytime switching
             await self.run_daily(
