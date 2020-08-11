@@ -1,4 +1,4 @@
-name: build AutoMoLi multi-arch image
+name: build multi-arch images
 
 on:
   push:
@@ -14,10 +14,12 @@ jobs:
         id: buildx
         uses: crazy-max/ghaction-docker-buildx@v1
         with:
-          version: latest
+          buildx-version: latest
+      - name: login to docker hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
       - name: build the image
         run: |
-          docker buildx build \
+          docker buildx build --push \
             --file demo/Dockerfile \
             --tag benleb/automoli:multi-latest \
             --platform linux/amd64,linux/arm/v7,linux/arm64 .
