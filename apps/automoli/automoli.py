@@ -199,17 +199,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for sensor in self.sensors["motion"]:
 
             # listen to xiaomi sensors by default
-            if not any((self.states["motion_on"], self.states["motion_off"])):
+            if not any([self.states["motion_on"], self.states["motion_off"]]):
                 self.lg("no motion states configured - using event listener", level="DEBUG")
                 await self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
 
             # on/off-only sensors without events on every motion
-            elif all((self.states["motion_on"], self.states["motion_off"])):
+            elif all([self.states["motion_on"], self.states["motion_off"]]):
                 self.lg("both motion states configured - using state listener", level="DEBUG")
                 await self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"])
                 await self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"])
 
-        # lights_off callback handles
+        # callback handles to switch lights off
         self.handles: Set[str] = set()
 
         self.args.update(
