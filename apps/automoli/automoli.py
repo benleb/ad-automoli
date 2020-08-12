@@ -411,7 +411,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             for sensor in self.sensors["humidity"]:
                 try:
                     current_humidity = float(await self.get_state(sensor))
-                except ValueError:
+                except ValueError as error:
+                    self.lg(f"self.get_state(sensor) raised a ValueError: {error}", level="ERROR")
                     continue
 
                 if current_humidity >= humidity_threshold:
@@ -425,29 +426,27 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     )
                     return
 
-        else:
+        # cancel scheduled callbacks
+        await self.clear_handles(deepcopy(self.handles))
 
-            # cancel scheduled callbacks
-            await self.clear_handles(deepcopy(self.handles))
+        if any([await self.get_state(entity) == "on" for entity in self.lights]):
+            for entity in self.lights:
+                await self.call_service("homeassistant/turn_off", entity_id=entity)
+            self.lg(
+                f"no motion in {hl(self.room.capitalize())} since "
+                f"{hl(self.active['delay'])}sec → turned {hl(f'off')}",
+                icon=OFF_ICON,
+            )
 
-            if any([await self.get_state(entity) == "on" for entity in self.lights]):
-                for entity in self.lights:
-                    await self.call_service("homeassistant/turn_off", entity_id=entity)
-                self.lg(
-                    f"no motion in {hl(self.room.capitalize())} since "
-                    f"{hl(self.active['delay'])}sec → turned {hl(f'off')}",
-                    icon=OFF_ICON,
+            # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
+            # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
+            # mod: https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
+            for sensor in self.sensors["motion"]:
+                await self.set_state(
+                    sensor,
+                    state="off",
+                    attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
                 )
-
-                # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
-                # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
-                # mod: https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
-                for sensor in self.sensors["motion"]:
-                    await self.set_state(
-                        sensor,
-                        state="off",
-                        attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
-                    )
 
     async def find_sensors(self, keyword: str) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
