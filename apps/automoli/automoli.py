@@ -4,7 +4,7 @@
   @benleb / https://github.com/benleb/ad-automoli
 """
 
-__version__ = "0.8.2"
+__version__ = "0.8.3"
 
 from copy import deepcopy
 from datetime import time
