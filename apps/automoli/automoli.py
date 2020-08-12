@@ -319,7 +319,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
         for entity in self.disable_switch_entities:
-            if (state := await self.get_state(entity, copy=False)) and state in self.disable_switch_states:
+            if not (state := await self.get_state(entity, copy=False)) or state in self.disable_switch_states:
                 self.lg(f"{APP_NAME} disabled by {entity}",)
                 return True
 
