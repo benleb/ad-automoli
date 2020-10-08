@@ -13,6 +13,6 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
       - name: black
-        uses: lgeiger/black-action@v1.0.1
+        uses: lgeiger/black-action@master
         with:
           args: . --check --line-length 120
