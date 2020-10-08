@@ -320,7 +320,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """check if automoli is disabled via home assistant entity"""
         for entity in self.disable_switch_entities:
             if (state := await self.get_state(entity, copy=False)) and state in self.disable_switch_states:
-                self.lg(f"{APP_NAME} is disabled by {entity} with {state = }",)
+                self.lg(f"{APP_NAME} is disabled by {entity} with {state = }")
                 return True
 
         return False
@@ -354,7 +354,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                 if self.active["is_hue_group"] and await self.get_state(entity_id=entity, attribute="is_hue_group"):
                     await self.call_service(
-                        "hue/hue_activate_scene", group_name=await self.friendly_name(entity), scene_name=light_setting,
+                        "hue/hue_activate_scene", group_name=await self.friendly_name(entity), scene_name=light_setting
                     )
                     continue
 
@@ -386,7 +386,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         await self.call_service("homeassistant/turn_on", entity_id=entity)
                     else:
                         await self.call_service(
-                            "homeassistant/turn_on", entity_id=entity, brightness_pct=self.active["light_setting"],
+                            "homeassistant/turn_on", entity_id=entity, brightness_pct=self.active["light_setting"]
                         )
 
                         self.lg(
@@ -494,7 +494,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             # collect all start times for sanity check
             if dt_start in starttimes:
-                raise ValueError(f"Start times of all daytimes have to be unique! " f"Duplicate found: {dt_start}",)
+                raise ValueError(f"Start times of all daytimes have to be unique! " f"Duplicate found: {dt_start}")
 
             starttimes.add(dt_start)
 
