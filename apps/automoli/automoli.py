@@ -26,7 +26,7 @@ DAYTIME_SWITCH_ICON = "⏰"
 DEFAULT_NAME = "daytime"
 DEFAULT_LIGHT_SETTING = 100
 DEFAULT_DELAY = 150
-DEFAULT_DAYTIMES = [
+DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
     dict(starttime="05:30", name="morning", light=25),
     dict(starttime="07:30", name="day", light=100),
     dict(starttime="20:30", name="evening", light=90),
