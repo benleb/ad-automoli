@@ -68,6 +68,21 @@ def hl_entity(entity: str) -> str:
     return f"{domain}.{hl(entity)}"
 
 
+def natural_time(duration: int) -> str:
+
+    duration_min, duration_sec = divmod(duration, float(SECONDS_PER_MIN))
+
+    # append suitable unit
+    if duration >= SECONDS_PER_MIN:
+        if duration_sec < 10 or duration_sec > 50:
+            natural = f"{hl(int(duration_min))}min"
+        else:
+            natural = f"{hl(int(duration_min))}min {hl(int(duration_sec))}sec"
+    else:
+        natural = f"{hl(int(duration_sec))}sec"
+
+    return natural
+
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
