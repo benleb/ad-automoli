@@ -51,6 +51,7 @@ SENSORS_REQUIRED = ["motion"]
 SENSORS_OPTIONAL = ["humidity", "illuminance"]
 
 RANDOMIZE_SEC = 5
+SECONDS_PER_MIN: int = 60
 
 
 # version checks
@@ -269,7 +270,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.lg(
                     f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
-                    f"{'' if is_scene else '%'}, delay: {hl(delay)}sec",
+                    f"{'' if is_scene else '%'}, delay: {hl(natural_time(delay))}",
                     icon=DAYTIME_SWITCH_ICON,
                 )
 
@@ -381,7 +382,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                 f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: "
                 f"{hl(light_setting.replace('scene.', ''))}"
-                f" | delay: {hl(self.active['delay'])}sec",
+                f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                 icon=ON_ICON,
             )
 
@@ -407,7 +408,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         self.lg(
                             f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
                             f"brightness: {hl(self.active['light_setting'])}%"
-                            f" | delay: {hl(self.active['delay'])}sec",
+                            f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                             icon=ON_ICON,
                         )
 
@@ -435,7 +436,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     await self.refresh_timer()
                     self.lg(
                         f"🛁 no motion in {hl(self.room.capitalize())} since "
-                        f"{hl(self.active['delay'])}sec → "
+                        f"{hl(natural_time(int(self.active['delay'])))} → "
                         f"but {hl(current_humidity)}%RH > "
                         f"{hl(humidity_threshold)}%RH"
                     )
@@ -449,7 +450,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 await self.call_service("homeassistant/turn_off", entity_id=entity)
             self.lg(
                 f"no motion in {hl(self.room.capitalize())} since "
-                f"{hl(self.active['delay'])}sec → turned {hl(f'off')}",
+                f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
                 icon=OFF_ICON,
             )
 
@@ -544,7 +545,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             room = f" · {hl(self.config['room'].capitalize())}"
 
         self.lg("")
-        self.lg(f"{hl(APP_NAME)}{room}", icon=self.icon)
+        self.lg(f"{hl(APP_NAME)} v{hl(__version__)}{room}", icon=self.icon)
         self.lg("")
 
         listeners = self.config.pop("listeners", None)
