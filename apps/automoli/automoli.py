@@ -84,6 +84,7 @@ def natural_time(duration: int) -> str:
 
     return natural
 
+
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
