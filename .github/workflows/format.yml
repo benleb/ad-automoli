@@ -10,9 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.head_ref }}
+        with: {ref: "${{ github.head_ref }}"}
       - name: black
         uses: lgeiger/black-action@master
-        with:
-          args: . --check --line-length 120
+        with: {args: . --check --diff --line-length 120}
