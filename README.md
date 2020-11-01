@@ -11,7 +11,7 @@ Fully *automatic light management* based on motion as [AppDaemon](https://github
 🔌 switches **lights** and **plugs** (with lights)  
 ☀️ supports **illumination sensors** to switch the light just if needed  
 💦 supports **humidity sensors** as blocker (the "*shower case*")  
-🔍 **automatic** discovery of **lights** and **sensors**
+🔍 **automatic** discovery of **lights** and **sensors**  
 ⛰️ **stable** and **tested** by many people with different homes  
 
 ## Getting Started
