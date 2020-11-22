@@ -13,14 +13,24 @@ jobs:
       - name: install buildx
         id: buildx
         uses: crazy-max/ghaction-docker-buildx@v1
-        with:
-          buildx-version: latest
+        with: {buildx-version: latest}
+
       - name: login to docker hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-      - name: build the image
+      - name: build & push docker hub
         run: |
           docker buildx build --push \
             --file demo/Dockerfile \
             --tag benleb/automoli:latest \
+            --build-arg APPDAEMON_VERSION=4.0.4 \
+            --platform linux/amd64,linux/arm64,linux/arm/v7 .
+
+      - name: login to ghcr.io
+        run: echo $CR_PAT | docker login ghcr.io -u benleb --password-stdin
+      - name: build & push ghcr.io
+        run: |
+          docker buildx build --push \
+            --file demo/Dockerfile \
+            --tag ghcr.io/benleb/ad-automoli:latest \
             --build-arg APPDAEMON_VERSION=4.0.4 \
             --platform linux/amd64,linux/arm64,linux/arm/v7 .
