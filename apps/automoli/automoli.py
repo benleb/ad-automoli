@@ -6,11 +6,13 @@
 
 __version__ = "0.8.3"
 
+import asyncio
+
 from copy import deepcopy
 from datetime import time
 from pprint import pformat
 from sys import version_info
-from typing import Any, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
@@ -26,6 +28,7 @@ DAYTIME_SWITCH_ICON = "⏰"
 DEFAULT_NAME = "daytime"
 DEFAULT_LIGHT_SETTING = 100
 DEFAULT_DELAY = 150
+DEFAULT_DIM_METHOD = "step"
 DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
     dict(starttime="05:30", name="morning", light=25),
     dict(starttime="07:30", name="day", light=100),
@@ -140,6 +143,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
             "humidity": self.args.pop("humidity_threshold", None),
             "illuminance": self.args.pop("illuminance_threshold", None),
         }
+
+        # experimental dimming features
+        self.dim: Optional[Dict[str, Union[float, int]]] = {}
+        if (dim := self.args.pop("dim", {})) and (seconds_before := dim.pop("seconds_before", None)):
+
+            brightness_step_pct = dim.pop("brightness_step_pct", None)
+
+            dim_method: Optional[str] = None
+            if method := dim.pop("method", None):
+                dim_method = method
+            elif brightness_step_pct:
+                dim_method = DEFAULT_DIM_METHOD
+
+            self.dim = {
+                "brightness_step_pct": brightness_step_pct,
+                "seconds_before": int(seconds_before),
+                "method": str(dim_method),
+            }
 
         # on/off switch via input.boolean
         self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
@@ -330,8 +351,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
-            # schedule new callback
-            self.handles.add(await self.run_in(self.lights_off, delay))
+
+            if self.dim:
+                self.handles.add(await self.run_in(self.dim_lights, (int(delay) - self.dim["seconds_before"])))
+
+            # schedule new  "turn off" callback (not needed when using transition dimming)
+            if not self.dim or self.dim["method"] != "transition":
+                self.handles.add(await self.run_in(self.lights_off, delay))
 
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
@@ -341,6 +367,35 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 return True
 
         return False
+
+    async def dim_lights(self, kwargs: Any) -> None:
+
+        message: str = ""
+        lights_to_dim: List[Coroutine[Any, Any, Any]] = []
+
+        if self.dim["method"] == "step":
+            message = (
+                f"dimmed light in {self.room} to {self.dim['brightness_step_pct']} | "
+                f"{self.dim['seconds_before']}s until off"
+            )
+            lights_to_dim = [
+                self.call_service("light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"])
+                for light in self.lights
+            ]
+
+        elif self.dim["method"] == "transition":
+            message = f"light in {self.room} transitioning to off - {self.dim['seconds_before']}s until off"
+            lights_to_dim = [
+                self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
+                for light in self.lights
+            ]
+
+        else:
+            return
+
+        await asyncio.gather(*lights_to_dim)
+
+        self.lg(message, icon=OFF_ICON)
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
