@@ -373,29 +373,33 @@ class AutoMoLi(hass.Hass):  # type: ignore
         message: str = ""
         lights_to_dim: List[Coroutine[Any, Any, Any]] = []
 
-        if self.dim["method"] == "step":
-            message = (
-                f"dimmed light in {self.room} to {self.dim['brightness_step_pct']} | "
-                f"{self.dim['seconds_before']}s until off"
-            )
-            lights_to_dim = [
-                self.call_service("light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"])
-                for light in self.lights
-            ]
+        if any([await self.get_state(light) == "on" for light in self.lights]):
 
-        elif self.dim["method"] == "transition":
-            message = f"light in {self.room} transitioning to off - {self.dim['seconds_before']}s until off"
-            lights_to_dim = [
-                self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
-                for light in self.lights
-            ]
+            if self.dim["method"] == "step":
+                message = (
+                    f"dimmed light in {self.room} to {self.dim['brightness_step_pct']} | "
+                    f"{self.dim['seconds_before']}s until off"
+                )
+                lights_to_dim = [
+                    self.call_service(
+                        "light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"]
+                    )
+                    for light in self.lights
+                ]
 
-        else:
-            return
+            elif self.dim["method"] == "transition":
+                message = f"light in {self.room} transitioning to off - {self.dim['seconds_before']}s until off"
+                lights_to_dim = [
+                    self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
+                    for light in self.lights
+                ]
 
-        await asyncio.gather(*lights_to_dim)
+            else:
+                return
 
-        self.lg(message, icon=OFF_ICON)
+            await asyncio.gather(*lights_to_dim)
+
+            self.lg(message, icon=OFF_ICON)
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
