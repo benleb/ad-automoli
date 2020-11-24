@@ -172,19 +172,18 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if "disable_switch_entity" in self.args:
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
-            self.lg("", icon=icon_alert)
-            self.lg("", icon=icon_alert)
             self.lg(
                 f" please migrate {hl('disable_switch_entity')} to {hl('disable_switch_entities')}", icon=icon_alert
             )
-            self.lg("", icon=icon_alert)
-            self.lg("", icon=icon_alert)
             self.lg("", icon=icon_alert)
             self.args.pop("disable_switch_entity")
             return
 
         # currently active daytime settings
         self.active: Dict[str, Union[int, str]] = {}
+
+        # entity lists for initial discovery
+        states = await self.get_state()
 
         # define light entities switched by automoli
         self.lights: Set[str] = self.args.pop("lights", set())
@@ -193,13 +192,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if await self.entity_exists(room_light_group):
                 self.lights.add(room_light_group)
             else:
-                self.lights.update(await self.find_sensors(KEYWORD_LIGHTS))
+                self.lights.update(await self.find_sensors(KEYWORD_LIGHTS, self.room, states))
 
         # sensors
         self.sensors: Dict[str, Any] = {}
 
         # enumerate sensors for motion detection
-        self.sensors["motion"] = self.listr(self.args.pop("motion", await self.find_sensors(KEYWORD_MOTION)))
+        self.sensors["motion"] = self.listr(
+            self.args.pop("motion", await self.find_sensors(KEYWORD_MOTION, self.room, states))
+        )
 
         # requirements check
         if not self.lights or not self.sensors["motion"]:
@@ -218,8 +219,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for sensor_type in SENSORS_OPTIONAL:
 
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
-                self.sensors[sensor_type] = self.listr(
-                    self.args.pop(sensor_type, await self.find_sensors(KEYWORDS[sensor_type]))
+                self.sensors[sensor_type] = self.listr(self.args.pop("motion", None)) or await self.find_sensors(
+                    KEYWORDS[sensor_type], self.room, states
                 )
 
             else:
@@ -234,18 +235,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
         daytimes = await self.build_daytimes(self.args.pop("daytimes", DEFAULT_DAYTIMES))
 
         # set up event listener for each sensor
+        listener: Set[Coroutine[Any, Any, Any]] = set()
         for sensor in self.sensors["motion"]:
 
             # listen to xiaomi sensors by default
             if not any([self.states["motion_on"], self.states["motion_off"]]):
                 self.lg("no motion states configured - using event listener", level="DEBUG")
-                await self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor)
+                listener.add(self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor))
 
             # on/off-only sensors without events on every motion
             elif all([self.states["motion_on"], self.states["motion_off"]]):
                 self.lg("both motion states configured - using state listener", level="DEBUG")
-                await self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"])
-                await self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"])
+                listener.add(self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"]))
+                listener.add(self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"]))
 
         # callback handles to switch lights off
         self.handles: Set[str] = set()
@@ -269,6 +271,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # show parsed config
         self.show_info(self.args)
 
+        await asyncio.gather(*listener)
         await self.refresh_timer()
 
     async def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
@@ -353,11 +356,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if delay := self.active.get("delay"):
 
             if self.dim:
-                self.handles.add(await self.run_in(self.dim_lights, (int(delay) - self.dim["seconds_before"])))
+                self.handles.add(await self.run_in(self.dim_lights, (int(delay) - self.dim["seconds_before"] + 2)))
 
-            # schedule new  "turn off" callback (not needed when using transition dimming)
-            if not self.dim or self.dim["method"] != "transition":
-                self.handles.add(await self.run_in(self.lights_off, delay))
+            # schedule "turn off" callback
+            self.handles.add(await self.run_in(self.lights_off, delay))
 
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
@@ -377,8 +379,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if self.dim["method"] == "step":
                 message = (
-                    f"dimmed light in {self.room} to {self.dim['brightness_step_pct']} | "
-                    f"{self.dim['seconds_before']}s until off"
+                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} "
+                    f"(off in {natural_time(int(self.dim['seconds_before']))}"
                 )
                 lights_to_dim = [
                     self.call_service(
@@ -388,7 +390,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 ]
 
             elif self.dim["method"] == "transition":
-                message = f"light in {self.room} transitioning to off - {self.dim['seconds_before']}s until off"
+                message = (
+                    f"{hl(self.room.capitalize())} → transition to zero "
+                    f"(over {natural_time(int(self.dim['seconds_before']))}"
+                )
                 lights_to_dim = [
                     self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
                     for light in self.lights
@@ -524,13 +529,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
                 )
 
-    async def find_sensors(self, keyword: str) -> List[str]:
+    async def find_sensors(self, keyword: str, room_name: str, states: Dict[str, Dict[str, Any]]) -> List[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
-        return [
-            sensor
-            for sensor in await self.get_state()
-            if keyword in sensor and self.room in (await self.friendly_name(sensor)).lower().replace("ü", "u")
-        ]
+
+        def lower_umlauts(text: str, single: bool = True) -> str:
+            return (
+                text.replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "s")
+                if single
+                else text.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+            ).lower()
+
+        matches: List[str] = []
+        for state in states.values():
+            if keyword in (entity_id := state.get("entity_id", "")) and lower_umlauts(room_name) in "|".join(
+                [entity_id, lower_umlauts(state.get("attributes", {}).get("friendly_name", ""))]
+            ):
+                matches.append(entity_id)
+
+        return matches
 
     async def build_daytimes(self, daytimes: List[Any]) -> Optional[List[Dict[str, Union[int, str]]]]:
         starttimes: Set[time] = set()
@@ -546,7 +562,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     isinstance(dt_light_setting, str)
                     and not dt_light_setting.startswith("scene.")
                     and any(
-                        [await self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
+                        await asyncio.gather(
+                            *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
+                        )
                     )
                 )
 
