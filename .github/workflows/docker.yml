@@ -38,9 +38,7 @@ jobs:
             ghcr.io/benleb/ad-automoli:latest
             ghcr.io/benleb/ad-automoli:0.8.3
           platforms: |
-            linux/i386
             linux/amd64
-            linux/arm/v6
             linux/arm/v7
             linux/arm64
           build-args: |
