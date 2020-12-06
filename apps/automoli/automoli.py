@@ -16,7 +16,6 @@ from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
-
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 
@@ -56,7 +55,6 @@ SENSORS_OPTIONAL = ["humidity", "illuminance"]
 RANDOMIZE_SEC = 5
 SECONDS_PER_MIN: int = 60
 
-
 # version checks
 py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
@@ -73,7 +71,6 @@ def hl_entity(entity: str) -> str:
 
 
 def natural_time(duration: int) -> str:
-
     duration_min, duration_sec = divmod(duration, float(SECONDS_PER_MIN))
 
     # append suitable unit
@@ -165,6 +162,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # on/off switch via input.boolean
         self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
         self.disable_switch_states: Set[str] = self.listr(self.args.pop("disable_switch_states", set(["off"])))
+
+        # store if an entity has been switched on by automoli
+        self.only_own_events: bool = bool(self.args.pop("only_own_events", False))
+        self._switched_on_by_automoli: Set[str] = set()
 
         self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
@@ -261,6 +262,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "lights": self.lights,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
+                "only_own_events": self.only_own_events
             }
         )
 
@@ -437,11 +439,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     await self.call_service(
                         "hue/hue_activate_scene", group_name=await self.friendly_name(entity), scene_name=light_setting
                     )
+                    if self.only_own_events:
+                        self._switched_on_by_automoli.add(entity)
                     continue
 
                 item = light_setting if light_setting.startswith("scene.") else entity
 
                 await self.call_service("homeassistant/turn_on", entity_id=item)
+                if self.only_own_events:
+                    self._switched_on_by_automoli.add(item)
 
             self.lg(
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
@@ -476,6 +482,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                             f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                             icon=ON_ICON,
                         )
+                    if self.only_own_events:
+                        self._switched_on_by_automoli.add(entity)
 
         else:
             raise ValueError(f"invalid brightness/scene: {self.active['light_setting']!s} " f"in {self.room}")
@@ -511,13 +519,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles(deepcopy(self.handles))
 
         if any([await self.get_state(entity) == "on" for entity in self.lights]):
+            at_least_one_turned_off = False
             for entity in self.lights:
-                await self.call_service("homeassistant/turn_off", entity_id=entity)
-            self.lg(
-                f"no motion in {hl(self.room.capitalize())} since "
-                f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
-                icon=OFF_ICON,
-            )
+                self.lg(f"{self.only_own_events}: {self._switched_on_by_automoli}")
+                if self.only_own_events:
+                    self.log(self._switched_on_by_automoli)
+                    if entity in self._switched_on_by_automoli:
+                        await self.call_service("homeassistant/turn_off", entity_id=entity)
+                        self._switched_on_by_automoli.remove(entity)
+                        at_least_one_turned_off = True
+                else:
+                    await self.call_service("homeassistant/turn_off", entity_id=entity)
+                    at_least_one_turned_off = True
+            if at_least_one_turned_off:
+                self.lg(
+                    f"no motion in {hl(self.room.capitalize())} since "
+                    f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
+                    icon=OFF_ICON,
+                )
 
             # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
             # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
@@ -542,7 +561,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         matches: List[str] = []
         for state in states.values():
             if keyword in (entity_id := state.get("entity_id", "")) and lower_umlauts(room_name) in "|".join(
-                [entity_id, lower_umlauts(state.get("attributes", {}).get("friendly_name", ""))]
+                    [entity_id, lower_umlauts(state.get("attributes", {}).get("friendly_name", ""))]
             ):
                 matches.append(entity_id)
 
@@ -559,13 +578,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 dt_is_hue_group = False
             else:
                 dt_is_hue_group = (
-                    isinstance(dt_light_setting, str)
-                    and not dt_light_setting.startswith("scene.")
-                    and any(
-                        await asyncio.gather(
-                            *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
-                        )
+                        isinstance(dt_light_setting, str)
+                        and not dt_light_setting.startswith("scene.")
+                        and any(
+                    await asyncio.gather(
+                        *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
                     )
+                )
                 )
 
             dt_start: time
