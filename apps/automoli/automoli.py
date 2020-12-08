@@ -72,7 +72,7 @@ def hl_entity(entity: str) -> str:
     return f"{domain}.{hl(entity)}"
 
 
-def natural_time(duration: int) -> str:
+def natural_time(duration: Union[int, float]) -> str:
 
     duration_min, duration_sec = divmod(duration, float(SECONDS_PER_MIN))
 
@@ -375,36 +375,34 @@ class AutoMoLi(hass.Hass):  # type: ignore
         message: str = ""
         lights_to_dim: List[Coroutine[Any, Any, Any]] = []
 
-        if any([await self.get_state(light) == "on" for light in self.lights]):
+        if not any([await self.get_state(light) == "on" for light in self.lights]):
+            return
 
-            if self.dim["method"] == "step":
-                message = (
-                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} "
-                    f"(off in {natural_time(int(self.dim['seconds_before']))}"
-                )
-                lights_to_dim = [
-                    self.call_service(
-                        "light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"]
-                    )
-                    for light in self.lights
-                ]
+        if self.dim["method"] == "step":
+            message = (
+                f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
+                f"{hl('off')} in {natural_time(int(self.dim['seconds_before']))}"
+            )
+            lights_to_dim = [
+                self.call_service("light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"])
+                for light in self.lights
+            ]
 
-            elif self.dim["method"] == "transition":
-                message = (
-                    f"{hl(self.room.capitalize())} → transition to zero "
-                    f"(over {natural_time(int(self.dim['seconds_before']))}"
-                )
-                lights_to_dim = [
-                    self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
-                    for light in self.lights
-                ]
+        elif self.dim["method"] == "transition":
+            message = (
+                f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(self.dim['seconds_before'])})"
+            )
+            lights_to_dim = [
+                self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
+                for light in self.lights
+            ]
 
-            else:
-                return
+        else:
+            return
 
-            await asyncio.gather(*lights_to_dim)
+        await asyncio.gather(*lights_to_dim)
 
-            self.lg(message, icon=OFF_ICON)
+        self.lg(message, icon=OFF_ICON)
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
