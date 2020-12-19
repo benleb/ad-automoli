@@ -16,6 +16,7 @@ from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
+
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
 
@@ -55,6 +56,7 @@ SENSORS_OPTIONAL = ["humidity", "illuminance"]
 RANDOMIZE_SEC = 5
 SECONDS_PER_MIN: int = 60
 
+
 # version checks
 py3_or_higher = version_info.major >= 3
 py37_or_higher = py3_or_higher and version_info.minor >= 7
@@ -70,7 +72,8 @@ def hl_entity(entity: str) -> str:
     return f"{domain}.{hl(entity)}"
 
 
-def natural_time(duration: int) -> str:
+def natural_time(duration: Union[int, float]) -> str:
+
     duration_min, duration_sec = divmod(duration, float(SECONDS_PER_MIN))
 
     # append suitable unit
@@ -260,6 +263,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "active_daytime": self.active_daytime,
                 "daytimes": daytimes,
                 "lights": self.lights,
+                "dim": self.dim,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
                 "only_own_events": self.only_own_events
@@ -377,36 +381,34 @@ class AutoMoLi(hass.Hass):  # type: ignore
         message: str = ""
         lights_to_dim: List[Coroutine[Any, Any, Any]] = []
 
-        if any([await self.get_state(light) == "on" for light in self.lights]):
+        if not any([await self.get_state(light) == "on" for light in self.lights]):
+            return
 
-            if self.dim["method"] == "step":
-                message = (
-                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} "
-                    f"(off in {natural_time(int(self.dim['seconds_before']))}"
-                )
-                lights_to_dim = [
-                    self.call_service(
-                        "light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"]
-                    )
-                    for light in self.lights
-                ]
+        if self.dim["method"] == "step":
+            message = (
+                f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
+                f"{hl('off')} in {natural_time(int(self.dim['seconds_before']))}"
+            )
+            lights_to_dim = [
+                self.call_service("light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"])
+                for light in self.lights
+            ]
 
-            elif self.dim["method"] == "transition":
-                message = (
-                    f"{hl(self.room.capitalize())} → transition to zero "
-                    f"(over {natural_time(int(self.dim['seconds_before']))}"
-                )
-                lights_to_dim = [
-                    self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
-                    for light in self.lights
-                ]
+        elif self.dim["method"] == "transition":
+            message = (
+                f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(self.dim['seconds_before'])})"
+            )
+            lights_to_dim = [
+                self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
+                for light in self.lights
+            ]
 
-            else:
-                return
+        else:
+            return
 
-            await asyncio.gather(*lights_to_dim)
+        await asyncio.gather(*lights_to_dim)
 
-            self.lg(message, icon=OFF_ICON)
+        self.lg(message, icon=OFF_ICON)
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
@@ -561,7 +563,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         matches: List[str] = []
         for state in states.values():
             if keyword in (entity_id := state.get("entity_id", "")) and lower_umlauts(room_name) in "|".join(
-                    [entity_id, lower_umlauts(state.get("attributes", {}).get("friendly_name", ""))]
+                [entity_id, lower_umlauts(state.get("attributes", {}).get("friendly_name", ""))]
             ):
                 matches.append(entity_id)
 
@@ -578,9 +580,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 dt_is_hue_group = False
             else:
                 dt_is_hue_group = (
-                        isinstance(dt_light_setting, str)
-                        and not dt_light_setting.startswith("scene.")
-                        and any(
+                    isinstance(dt_light_setting, str)
+                    and not dt_light_setting.startswith("scene.")
+                    and any(
                     await asyncio.gather(
                         *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
                     )
