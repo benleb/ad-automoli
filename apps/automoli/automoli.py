@@ -523,9 +523,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if any([await self.get_state(entity) == "on" for entity in self.lights]):
             at_least_one_turned_off = False
             for entity in self.lights:
-                self.lg(f"{self.only_own_events}: {self._switched_on_by_automoli}")
                 if self.only_own_events:
-                    self.log(self._switched_on_by_automoli)
                     if entity in self._switched_on_by_automoli:
                         await self.call_service("homeassistant/turn_off", entity_id=entity)
                         self._switched_on_by_automoli.remove(entity)
