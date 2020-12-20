@@ -166,6 +166,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.disable_switch_entities: Set[str] = self.listr(self.args.pop("disable_switch_entities", set()))
         self.disable_switch_states: Set[str] = self.listr(self.args.pop("disable_switch_states", set(["off"])))
 
+        # store if an entity has been switched on by automoli
+        self.only_own_events: bool = bool(self.args.pop("only_own_events", False))
+        self._switched_on_by_automoli: Set[str] = set()
+
         self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
         # eol of the old option name
@@ -262,6 +266,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "dim": self.dim,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
+                "only_own_events": self.only_own_events
             }
         )
 
@@ -436,11 +441,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     await self.call_service(
                         "hue/hue_activate_scene", group_name=await self.friendly_name(entity), scene_name=light_setting
                     )
+                    if self.only_own_events:
+                        self._switched_on_by_automoli.add(entity)
                     continue
 
                 item = light_setting if light_setting.startswith("scene.") else entity
 
                 await self.call_service("homeassistant/turn_on", entity_id=item)
+                if self.only_own_events:
+                    self._switched_on_by_automoli.add(item)
 
             self.lg(
                 f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
@@ -475,6 +484,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                             f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                             icon=ON_ICON,
                         )
+                    if self.only_own_events:
+                        self._switched_on_by_automoli.add(entity)
 
         else:
             raise ValueError(f"invalid brightness/scene: {self.active['light_setting']!s} " f"in {self.room}")
@@ -510,13 +521,22 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles(deepcopy(self.handles))
 
         if any([await self.get_state(entity) == "on" for entity in self.lights]):
+            at_least_one_turned_off = False
             for entity in self.lights:
-                await self.call_service("homeassistant/turn_off", entity_id=entity)
-            self.lg(
-                f"no motion in {hl(self.room.capitalize())} since "
-                f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
-                icon=OFF_ICON,
-            )
+                if self.only_own_events:
+                    if entity in self._switched_on_by_automoli:
+                        await self.call_service("homeassistant/turn_off", entity_id=entity)
+                        self._switched_on_by_automoli.remove(entity)
+                        at_least_one_turned_off = True
+                else:
+                    await self.call_service("homeassistant/turn_off", entity_id=entity)
+                    at_least_one_turned_off = True
+            if at_least_one_turned_off:
+                self.lg(
+                    f"no motion in {hl(self.room.capitalize())} since "
+                    f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
+                    icon=OFF_ICON,
+                )
 
             # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
             # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
@@ -561,10 +581,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     isinstance(dt_light_setting, str)
                     and not dt_light_setting.startswith("scene.")
                     and any(
-                        await asyncio.gather(
-                            *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
-                        )
+                    await asyncio.gather(
+                        *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
                     )
+                )
                 )
 
             dt_start: time
