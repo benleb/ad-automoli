@@ -266,7 +266,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "dim": self.dim,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
-                "only_own_events": self.only_own_events
+                "only_own_events": self.only_own_events,
             }
         )
 
@@ -581,10 +581,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     isinstance(dt_light_setting, str)
                     and not dt_light_setting.startswith("scene.")
                     and any(
-                    await asyncio.gather(
-                        *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
+                        await asyncio.gather(
+                            *[self.get_state(entity_id=entity, attribute="is_hue_group") for entity in self.lights]
+                        )
                     )
-                )
                 )
 
             dt_start: time
