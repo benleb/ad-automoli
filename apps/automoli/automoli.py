@@ -4,8 +4,6 @@
   @benleb / https://github.com/benleb/ad-automoli
 """
 
-__version__ = "0.8.3"
-
 import asyncio
 
 from copy import deepcopy
@@ -16,6 +14,8 @@ from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
 
+
+__version__ = "0.8.3"
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
@@ -37,11 +37,6 @@ DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
 ]
 
 EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
-
-KEYWORD_LIGHTS = "light."
-KEYWORD_MOTION = "binary_sensor.motion_sensor_"
-KEYWORD_HUMIDITY = "sensor.humidity_"
-KEYWORD_ILLUMINANCE = "sensor.illumination_"
 
 KEYWORDS = {
     "humidity": "sensor.humidity_",
@@ -88,6 +83,30 @@ def natural_time(duration: Union[int, float]) -> str:
     return natural
 
 
+def install_pip_package(pkg: str, version: str = "", install_name: Optional[str] = None, pre_release: bool = False) -> None:
+    import importlib
+    import site
+    import sys
+
+    from subprocess import check_call  # nosec
+
+    try:
+        importlib.import_module(pkg)
+    except ImportError:
+        install_name = install_name if install_name else pkg
+        pre = "--pre" if pre_release else ""
+
+        check_call([sys.executable, "-m", "pip", "install", "--upgrade", pre, f"{install_name}{version}"])
+        importlib.reload(site)
+    finally:
+        importlib.import_module(pkg)
+
+
+# install adutils library
+install_pip_package("adutils", version="~=0.5.0a1", pre_release=True)
+import adutils as adu  # noqa
+
+
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
@@ -96,7 +115,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         message = f"{f'{icon} ' if icon else ' '}{msg}"
         _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
 
-    def listr(self, list_or_string: Union[List[str], Set[str], str], entities_exist: bool = True) -> Set[str]:
+    def listr(self, list_or_string: Union[List[str], Set[str], str, Any], entities_exist: bool = True) -> Set[str]:
         entity_list: List[str] = []
 
         if isinstance(list_or_string, str):
@@ -120,7 +139,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg("")
-            self.lg(f" please update to {hl('Python >= 3.8')}! 🤪", icon=icon_alert)
+            self.lg(f" please update to {adu.hl('Python >= 3.8')}! 🤪", icon=icon_alert)
             self.lg("")
             self.lg("", icon=icon_alert)
         if not py37_or_higher:
@@ -145,7 +164,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # experimental dimming features
-        self.dim: Optional[Dict[str, Union[float, int]]] = {}
+        self.dim: Optional[Dict[str, Union[float, int, str]]] = {}
         if (dim := self.args.pop("dim", {})) and (seconds_before := dim.pop("seconds_before", None)):
 
             brightness_step_pct = dim.pop("brightness_step_pct", None)
@@ -196,14 +215,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if await self.entity_exists(room_light_group):
                 self.lights.add(room_light_group)
             else:
-                self.lights.update(await self.find_sensors(KEYWORD_LIGHTS, self.room, states))
+                self.lights.update(await self.find_sensors(KEYWORDS["light"], self.room, states))
 
         # sensors
         self.sensors: Dict[str, Any] = {}
 
         # enumerate sensors for motion detection
         self.sensors["motion"] = self.listr(
-            self.args.pop("motion", await self.find_sensors(KEYWORD_MOTION, self.room, states))
+            self.args.pop("motion", await self.find_sensors(KEYWORDS["motion"], self.room, states))
         )
 
         # requirements check
@@ -211,7 +230,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg("")
             self.lg(
                 f"{hl('No lights/sensors')} given and none found with name: "
-                f"'{hl(KEYWORD_LIGHTS)}*{hl(self.room)}*' or '{hl(KEYWORD_MOTION)}*{hl(self.room)}*'",
+                f"'{hl(KEYWORDS['light'])}*{hl(self.room)}*' or '{hl(KEYWORDS['motion'])}*{hl(self.room)}*'",
                 icon="⚠️ ",
             )
             self.lg("")
@@ -301,7 +320,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.lg(
                     f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
-                    f"{'' if is_scene else '%'}, delay: {hl(natural_time(delay))}",
+                    f"{'' if is_scene else '%'}, delay: {hl(adu.natural_time(delay))}",
                     icon=DAYTIME_SWITCH_ICON,
                 )
 
@@ -332,7 +351,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
         """Handle motion events."""
-        self.lg(f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORD_MOTION, '')}'", level="DEBUG")
+        self.lg(f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'", level="DEBUG")
 
         # check if automoli is disabled via home assistant entity
         if await self.is_disabled():
