@@ -83,7 +83,9 @@ def natural_time(duration: Union[int, float]) -> str:
     return natural
 
 
-def install_pip_package(pkg: str, version: str = "", install_name: Optional[str] = None, pre_release: bool = False) -> None:
+def install_pip_package(
+    pkg: str, version: str = "", install_name: Optional[str] = None, pre_release: bool = False
+) -> None:
     import importlib
     import site
     import sys
@@ -351,7 +353,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
         """Handle motion events."""
-        self.lg(f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'", level="DEBUG")
+        self.lg(
+            f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'", level="DEBUG"
+        )
 
         # check if automoli is disabled via home assistant entity
         if await self.is_disabled():
