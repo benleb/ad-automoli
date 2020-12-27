@@ -612,7 +612,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             dt_start: time
             try:
-                dt_start = await self.parse_time(daytime.get("starttime") + ":00", aware=True)
+                starttime = daytime.get("starttime")
+                if ":" in starttime: starttime += ":00"
+                dt_start = await self.parse_time(starttime, aware=True)
             except ValueError as error:
                 raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
 
@@ -626,7 +628,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
 
             # info about next daytime
-            next_dt_start = time.fromisoformat(str(daytimes[(idx + 1) % len(daytimes)].get("starttime")))
+            try:
+                next_starttime = str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
+                if ":" in next_starttime: next_starttime += ":00"
+                next_dt_name = str(daytimes[(idx + 1) % len(daytimes)].get("name"))
+                next_dt_start = await self.parse_time(next_starttime, aware=True)
+            except ValueError as error:
+                raise ValueError(f"missing start time in daytime '{next_dt_name}': {error}")
 
             # collect all start times for sanity check
             if dt_start in starttimes:

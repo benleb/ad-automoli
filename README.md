@@ -62,12 +62,12 @@ livingroom:
   delay: 600
   daytimes:
       # This rule "morning" uses a scene, the scene.livingroom_morning Home Assistant scene will be used
-    - { starttime: "05:30", name: morning, light: "scene.livingroom_morning" }
+    - { starttime: "sunrise", name: morning, light: "scene.livingroom_morning" }
 
     - { starttime: "07:30", name: day, light: "scene.livingroom_working" }
 
       # This rule"evening" uses a percentage brightness value, and the lights specified in lights: below will be set to 90%
-    - { starttime: "20:30", name: evening, light: 90 }
+    - { starttime: "sunset-01:00", name: evening, light: 90 }
 
     - { starttime: "22:30", name: night, light: 20 }
 
@@ -103,7 +103,7 @@ bathroom:
     - { starttime: "05:30", name: morning, light: 45 }
     - { starttime: "07:30", name: day, light: "Day" }
     - { starttime: "20:30", name: evening, light: 100 }
-    - { starttime: "22:30", name: night, light: 0 }
+    - { starttime: "sunset+01:00", name: night, light: 0 }
 
   # As this is a bathroom there could be the case that when taking a bath or shower, motion is not detected and the lights turn off, which isnt helpful, so the following settings allow you to use a humidity sensor and humidity threshold to prevent this by detecting the humidity from the shower and blocking the lights turning off.
   humidity:
@@ -156,7 +156,7 @@ key | optional | type | default | description
 
 key | optional | type | default | description
 -- | -- | -- | -- | --
-`starttime` | False | string | | Time this daytime starts
+`starttime` | False | string | | Time this daytime starts or sunrise|sunset [+|- HH:MM]
 `name` | False | string | | A name for this daytime
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`. Setting this will overwrite the global `delay` setting for this daytime.
 `light` | False | integer/string | | Light setting (percent integer value (0-100) in or scene entity
