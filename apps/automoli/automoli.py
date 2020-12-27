@@ -613,7 +613,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             dt_start: time
             try:
                 starttime = daytime.get("starttime")
-                if ":" in starttime: 
+                if ":" in starttime:
                     starttime += ":00"
                 dt_start = await self.parse_time(starttime, aware=True)
             except ValueError as error:
@@ -631,7 +631,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # info about next daytime
             try:
                 next_starttime = str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
-                if ":" in next_starttime: 
+                if ":" in next_starttime:
                     next_starttime += ":00"
                 next_dt_name = str(daytimes[(idx + 1) % len(daytimes)].get("name"))
                 next_dt_start = await self.parse_time(next_starttime, aware=True)
