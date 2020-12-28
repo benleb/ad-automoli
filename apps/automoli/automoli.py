@@ -742,4 +742,3 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 prefix = self.config["_prefixes"][key]
 
             self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}")
-            
