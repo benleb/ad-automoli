@@ -394,6 +394,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
 
         # check if automoli is disabled via home assistant entity
+        self.lg(f"motion_event(..) {await self.is_disabled() = }", level=logging.DEBUG)
         if await self.is_disabled():
             return
 
