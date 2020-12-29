@@ -284,7 +284,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.lg(
                     f"No {sensor_type} sensors → disabling features based on {sensor_type}"
                     f" - {self.thresholds[sensor_type]}.",
-                    level="DEBUG",
+                    level=logging.DEBUG,
                 )
                 del self.thresholds[sensor_type]
 
@@ -361,7 +361,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def motion_cleared(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # starte the timer if motion is cleared
-        self.lg(f"motion cleared: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
+        self.lg(f"motion_cleared(..) {entity} changed {attribute} from {old} to {new}", level=logging.DEBUG)
 
         if all([await self.get_state(sensor) == self.states["motion_off"] for sensor in self.sensors["motion"]]):
             # all motion sensors off, starting timer
