@@ -448,6 +448,40 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         return False
 
+    async def is_blocked(self) -> bool:
+
+        # the "shower case"
+        self.lg(f"{self.thresholds.get('humidity') = }", level=logging.DEBUG)
+
+        if humidity_threshold := self.thresholds.get("humidity"):
+
+            self.lg(f"{self.sensors['humidity'] = }", level=logging.DEBUG)
+
+            for sensor in self.sensors["humidity"]:
+                try:
+                    current_humidity = float(await self.get_state(sensor))
+                except ValueError as error:
+                    self.lg(f"self.get_state(sensor) raised a ValueError: {error}", level=logging.ERROR)
+                    continue
+
+                self.lg(
+                    f"{current_humidity = } >= {humidity_threshold = } = {current_humidity >= humidity_threshold}",
+                    level=logging.DEBUG,
+                )
+
+                if current_humidity >= humidity_threshold:
+                    # blocker.append(sensor)
+                    await self.refresh_timer()
+                    self.lg(
+                        f"🛁 no motion in {hl(self.room.capitalize())} since "
+                        f"{hl(natural_time(int(self.active['delay'])))} → "
+                        f"but {hl(current_humidity)}%RH > "
+                        f"{hl(humidity_threshold)}%RH"
+                    )
+                    return True
+
+        return False
+
     async def dim_lights(self, kwargs: Any) -> None:
 
         message: str = ""
@@ -456,6 +490,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg(f"dim_lights(..) {await self.is_disabled() = } | {await self.is_blocked() = }", level=logging.DEBUG)
 
+        # check if automoli is disabled via home assistant entity or blockers like the "shower case"
+        if (await self.is_disabled()) or (await self.is_blocked()):
+            return
 
         if not any([await self.get_state(light) == "on" for light in self.lights]):
             return
@@ -582,25 +619,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg(f"lights_off(..) {await self.is_disabled()} | {await self.is_blocked() = }", level=logging.DEBUG)
 
-        # the "shower case" check
-        if humidity_threshold := self.thresholds.get("humidity"):
-            for sensor in self.sensors["humidity"]:
-                try:
-                    current_humidity = float(await self.get_state(sensor))
-                except ValueError as error:
-                    self.lg(f"self.get_state(sensor) raised a ValueError: {error}", level="ERROR")
-                    continue
-
-                if current_humidity >= humidity_threshold:
-                    # blocker.append(sensor)
-                    await self.refresh_timer()
-                    self.lg(
-                        f"🛁 no motion in {hl(self.room.capitalize())} since "
-                        f"{hl(natural_time(int(self.active['delay'])))} → "
-                        f"but {hl(current_humidity)}%RH > "
-                        f"{hl(humidity_threshold)}%RH"
-                    )
-                    return
+        # check if automoli is disabled via home assistant entity or blockers like the "shower case"
+        if (await self.is_disabled()) or (await self.is_blocked()):
+            return
 
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
