@@ -109,6 +109,14 @@ install_pip_package("adutils", version="~=0.5.0a1", pre_release=True)
 import adutils as adu  # noqa
 
 
+class DimMethod(IntEnum):
+    """IntEnum representing the transition-to-off method used."""
+
+    NONE = 0
+    TRANSITION = 1
+    STEP = 2
+
+
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
@@ -171,16 +179,18 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             brightness_step_pct = dim.pop("brightness_step_pct", None)
 
-            dim_method: Optional[str] = None
+            dim_method: Optional[DimMethod] = None
             if method := dim.pop("method", None):
-                dim_method = method
+                dim_method = DimMethod.TRANSITION if method.lower() == "transition" else DimMethod.STEP
             elif brightness_step_pct:
-                dim_method = DEFAULT_DIM_METHOD
+                dim_method = DimMethod.TRANSITION
+            else:
+                dim_method = DimMethod.NONE
 
             self.dim = {
                 "brightness_step_pct": brightness_step_pct,
                 "seconds_before": int(seconds_before),
-                "method": str(dim_method),
+                "method": dim_method.value,
             }
 
         # on/off switch via input.boolean
@@ -407,29 +417,40 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if not any([await self.get_state(light) == "on" for light in self.lights]):
             return
 
-        if self.dim["method"] == "step":
-            message = (
-                f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
-                f"{hl('off')} in {natural_time(int(self.dim['seconds_before']))}"
-            )
-            lights_to_dim = [
-                self.call_service("light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"])
-                for light in self.lights
-            ]
+        if self.dim and (dim_method := DimMethod(self.dim["method"])):
 
-        elif self.dim["method"] == "transition":
-            message = (
-                f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(self.dim['seconds_before'])})"
-            )
-            lights_to_dim = [
-                self.call_service("light/turn_off", entity_id=light, transition=self.dim["seconds_before"])
-                for light in self.lights
-            ]
+            seconds_before = int(self.dim["seconds_before"])
 
-        else:
-            return
+            self.lg(f"dim_lights(..) {dim_method = } - {seconds_before = }", level=logging.DEBUG)
 
-        await asyncio.gather(*lights_to_dim)
+            if dim_method == DimMethod.STEP:
+                message = (
+                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
+                    f"{hl('off')} in {natural_time(seconds_before)}"
+                )
+                lights_to_dim = [
+                    self.call_service(
+                        "light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"]
+                    )
+                    for light in self.lights
+                ]
+                # states_to_manipulate = [
+                #     self.set_state(entity=light, state="off")
+                #     for light in self.lights
+                # ]
+
+            elif dim_method == DimMethod.TRANSITION:
+                message = f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(seconds_before)})"
+                lights_to_dim = [
+                    self.call_service("light/turn_off", entity_id=light, transition=seconds_before)
+                    for light in self.lights
+                ]
+
+            else:
+                return
+
+        self.lg(f"dim_lights(..) {await asyncio.gather(*lights_to_dim) = }", level=logging.DEBUG)
+        # self.lg(f"dim_lights(..) {await asyncio.gather(*states_to_manipulate) = }", level=logging.DEBUG)
 
         self.lg(message, icon=OFF_ICON)
 
