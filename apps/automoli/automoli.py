@@ -100,9 +100,10 @@ def install_pip_package(
         importlib.import_module(pkg)
     except ImportError:
         install_name = install_name if install_name else pkg
-        pre = "--pre" if pre_release else ""
-
-        check_call([sys.executable, "-m", "pip", "install", "--upgrade", pre, f"{install_name}{version}"])
+        if pre_release:
+            check_call([sys.executable, "-m", "pip", "install", "--upgrade", "--pre", f"{install_name}{version}"])
+        else:
+            check_call([sys.executable, "-m", "pip", "install", "--upgrade", f"{install_name}{version}"])
         importlib.reload(site)
     finally:
         importlib.import_module(pkg)
