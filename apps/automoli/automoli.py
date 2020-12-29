@@ -545,7 +545,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             # the "eco mode" check
             for sensor in self.sensors["illuminance"]:
-                self.lg(f"lights_on(..) {self.thresholds.get('illuminance') = } | {float(await self.get_state(sensor)) = }", level=logging.DEBUG)
+                self.lg(
+                    f"lights_on(..) {self.thresholds.get('illuminance') = } | {float(await self.get_state(sensor)) = }",
+                    level=logging.DEBUG,
+                )
                 try:
                     if (illuminance := float(await self.get_state(sensor))) >= illuminance_threshold:
                         self.lg(
