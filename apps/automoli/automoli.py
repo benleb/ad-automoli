@@ -5,9 +5,11 @@
 """
 
 import asyncio
+import logging
 
 from copy import deepcopy
 from datetime import time
+from enum import IntEnum
 from pprint import pformat
 from sys import version_info
 from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
@@ -35,6 +37,8 @@ DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
     dict(starttime="20:30", name="evening", light=90),
     dict(starttime="22:30", name="night", light=0),
 ]
+DEFAULT_LOGLEVEL = "INFO"
+
 
 EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
 
@@ -120,10 +124,23 @@ class DimMethod(IntEnum):
 class AutoMoLi(hass.Hass):  # type: ignore
     """Automatic Motion Lights."""
 
-    def lg(self, msg: str, *args: Any, icon: Optional[str] = None, repeat: int = 1, **kwargs: Any) -> None:
+    def lg(
+        self,
+        msg: str,
+        *args: Any,
+        level: Optional[int] = None,
+        icon: Optional[str] = None,
+        repeat: int = 1,
+        **kwargs: Any,
+    ) -> None:
         kwargs.setdefault("ascii_encode", False)
-        message = f"{f'{icon} ' if icon else ' '}{msg}"
-        _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
+
+        level = level if level else self.loglevel
+
+        if level >= self.loglevel:
+            message = f"{f'{icon} ' if icon else ' '}{msg}"
+            _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
+            return
 
     def listr(self, list_or_string: Union[List[str], Set[str], str, Any], entities_exist: bool = True) -> Set[str]:
         entity_list: List[str] = []
@@ -142,7 +159,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.icon = APP_ICON
 
         # get a real dict for the configuration
-        self.args = dict(self.args)
+        self.args: Dict[str, Any] = dict(self.args)
+
+        self.loglevel = logging.DEBUG if self.args.get("debug_log", False) else logging.INFO
+
+        self.lg(f"setting log level to {logging.getLevelName(self.loglevel)}", level=logging.DEBUG)
 
         # python version check
         if not py38_or_higher:
@@ -174,7 +195,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # experimental dimming features
-        self.dim: Optional[Dict[str, Union[float, int, str]]] = {}
+        self.dim: Optional[Dict[str, Union[float, int]]] = {}
         if (dim := self.args.pop("dim", {})) and (seconds_before := dim.pop("seconds_before", None)):
 
             brightness_step_pct = dim.pop("brightness_step_pct", None)
@@ -275,12 +296,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             # listen to xiaomi sensors by default
             if not any([self.states["motion_on"], self.states["motion_off"]]):
-                self.lg("no motion states configured - using event listener", level="DEBUG")
+                self.lg("no motion states configured - using event listener", level=logging.DEBUG)
                 listener.add(self.listen_event(self.motion_event, event=EVENT_MOTION_XIAOMI, entity_id=sensor))
 
             # on/off-only sensors without events on every motion
             elif all([self.states["motion_on"], self.states["motion_off"]]):
-                self.lg("both motion states configured - using state listener", level="DEBUG")
+                self.lg("both motion states configured - using state listener", level=logging.DEBUG)
                 listener.add(self.listen_state(self.motion_detected, entity=sensor, new=self.states["motion_on"]))
                 listener.add(self.listen_state(self.motion_cleared, entity=sensor, new=self.states["motion_off"]))
 
@@ -298,6 +319,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
                 "only_own_events": self.only_own_events,
+                "loglevel": self.loglevel,
             }
         )
 
@@ -350,12 +372,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def motion_detected(self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]) -> None:
         # wrapper function
 
-        self.lg(f"motion detected: {entity} changed {attribute} from {old} to {new}", level="DEBUG")
+        self.lg(f"motion detected(..) {entity} changed {attribute} from {old} to {new}", level=logging.DEBUG)
 
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
 
-        self.lg("handles cleared and cancelled all scheduled timers", level="DEBUG")
+        self.lg("motion_detected(..) handles cleared and cancelled all scheduled timers", level=logging.DEBUG)
 
         # calling motion event handler
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
@@ -364,7 +386,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
         """Handle motion events."""
         self.lg(
-            f"received '{event}' event from " f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'", level="DEBUG"
+            f"motion_event(..) received '{adu.hl(event)}' event from "
+            f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'",
+            level=logging.DEBUG,
         )
 
         # check if automoli is disabled via home assistant entity
@@ -375,7 +399,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if not any([await self.get_state(light) == "on" for light in self.lights]):
             await self.lights_on()
         else:
-            self.lg(f"light in {self.room.capitalize()} already on → refreshing the timer", level="DEBUG")
+            self.lg(
+                f"motion_event(..) light in {self.room.capitalize()} already on → refreshing the timer",
+                level=logging.DEBUG,
+            )
 
         if event != "state_changed_detection":
             await self.refresh_timer()
@@ -383,22 +410,33 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def clear_handles(self, handles: Set[str]) -> None:
         """clear scheduled timers/callbacks."""
         self.handles.clear()
-        [await self.cancel_timer(handle) for handle in handles]
+        self.lg(f"clear_handles(..) {self.handles = } cleared, canceling {handles = }", level=logging.DEBUG)
+        await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
 
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
 
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
+        self.lg(f"refresh_timer(..) handles cleared → {self.handles = }", level=logging.DEBUG)
 
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
 
+            self.lg(f"refresh_timer(..) {self.active = }", level=logging.DEBUG)
+
             if self.dim:
-                self.handles.add(await self.run_in(self.dim_lights, (int(delay) - self.dim["seconds_before"] + 2)))
+                dim_in_sec = int(delay) - self.dim["seconds_before"]  # + 2
+                self.lg(f"refresh_timer(..) {self.dim = }, dimming in {dim_in_sec}", level=logging.DEBUG)
+
+                dim_handle = await self.run_in(self.dim_lights, (dim_in_sec))
+                self.handles.add(dim_handle)
+                self.lg(f"refresh_timer(..) {dim_handle = } -> {self.handles}", level=logging.DEBUG)
 
             # schedule "turn off" callback
-            self.handles.add(await self.run_in(self.lights_off, delay))
+            off_handle = await self.run_in(self.lights_off, delay)
+            self.handles.add(off_handle)
+            self.lg(f"refresh_timer(..) {off_handle = } -> {self.handles}", level=logging.DEBUG)
 
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
@@ -413,6 +451,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         message: str = ""
         lights_to_dim: List[Coroutine[Any, Any, Any]] = []
+        # states_to_manipulate: List[Coroutine[Any, Any, Any]] = []
+
+        self.lg(f"dim_lights(..) {await self.is_disabled() = } | {await self.is_blocked() = }", level=logging.DEBUG)
+
 
         if not any([await self.get_state(light) == "on" for light in self.lights]):
             return
@@ -537,9 +579,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def lights_off(self, kwargs: Dict[str, Any]) -> None:
         """Turn off the lights."""
 
-        # check if automoli is disabled via home assistant entity
-        if await self.is_disabled():
-            return
+        self.lg(f"lights_off(..) {await self.is_disabled()} | {await self.is_blocked() = }", level=logging.DEBUG)
 
         # the "shower case" check
         if humidity_threshold := self.thresholds.get("humidity"):
@@ -678,7 +718,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.config = config
 
         if not self.config:
-            self.lg("no configuration available", icon="‼️", level="ERROR")
+            self.lg("no configuration available", icon="‼️", level=logging.ERROR)
             return
 
         room = ""
