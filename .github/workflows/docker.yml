@@ -34,9 +34,9 @@ jobs:
           file: ./demo/Dockerfile
           tags: |
             benleb/automoli:latest
-            benleb/automoli:0.9.0b0
+            benleb/automoli:0.9.0b1
             ghcr.io/benleb/ad-automoli:latest
-            ghcr.io/benleb/ad-automoli:0.9.0b0
+            ghcr.io/benleb/ad-automoli:0.9.0b1
           platforms: |
             linux/amd64
             linux/arm/v7
