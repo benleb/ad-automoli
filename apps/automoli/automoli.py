@@ -317,6 +317,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "daytimes": daytimes,
                 "lights": self.lights,
                 "dim": self.dim,
+                "threshold": self.thresholds,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
                 "only_own_events": self.only_own_events,
@@ -536,10 +537,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def lights_on(self) -> None:
         """Turn on the lights."""
+
+        self.lg(f"lights_on(..) {self.thresholds.get('illuminance') = }", level=logging.DEBUG)
+
         if illuminance_threshold := self.thresholds.get("illuminance"):
 
             # the "eco mode" check
             for sensor in self.sensors["illuminance"]:
+                self.lg(f"lights_on(..) {self.thresholds.get('illuminance') = } | {float(await self.get_state(sensor)) = }", level=logging.DEBUG)
                 try:
                     if (illuminance := float(await self.get_state(sensor))) >= illuminance_threshold:
                         self.lg(
