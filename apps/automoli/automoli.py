@@ -487,8 +487,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def dim_lights(self, kwargs: Any) -> None:
 
         message: str = ""
-        lights_to_dim: List[Coroutine[Any, Any, Any]] = []
-        # states_to_manipulate: List[Coroutine[Any, Any, Any]] = []
 
         self.lg(f"dim_lights(..) {await self.is_disabled() = } | {await self.is_blocked() = }", level=logging.DEBUG)
 
@@ -499,40 +497,32 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if not any([await self.get_state(light) == "on" for light in self.lights]):
             return
 
-        if self.dim and (dim_method := DimMethod(self.dim["method"])):
+        if self.dim and (dim_method := DimMethod(self.dim["method"])) and dim_method != DimMethod.NONE:
 
             seconds_before = int(self.dim["seconds_before"])
+            dim_attributes: Dict[str, int] = {}
 
             self.lg(f"dim_lights(..) {dim_method = } - {seconds_before = }", level=logging.DEBUG)
 
             if dim_method == DimMethod.STEP:
+                dim_attributes = {"brightness_step_pct": int(self.dim["brightness_step_pct"])}
                 message = (
                     f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
                     f"{hl('off')} in {natural_time(seconds_before)}"
                 )
-                lights_to_dim = [
-                    self.call_service(
-                        "light/turn_on", entity_id=light, brightness_step_pct=self.dim["brightness_step_pct"]
-                    )
-                    for light in self.lights
-                ]
-                # states_to_manipulate = [
-                #     self.set_state(entity=light, state="off")
-                #     for light in self.lights
-                # ]
 
             elif dim_method == DimMethod.TRANSITION:
+                dim_attributes = {"transition": int(seconds_before)}
                 message = f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(seconds_before)})"
-                lights_to_dim = [
-                    self.call_service("light/turn_off", entity_id=light, transition=seconds_before)
-                    for light in self.lights
-                ]
 
-            else:
-                return
+            self.lg(f"dim_lights(..) {dim_attributes = }", level=logging.DEBUG)
 
-        self.lg(f"dim_lights(..) {await asyncio.gather(*lights_to_dim) = }", level=logging.DEBUG)
-        # self.lg(f"dim_lights(..) {await asyncio.gather(*states_to_manipulate) = }", level=logging.DEBUG)
+            for light in self.lights:
+                await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
+                await self.set_state(entity=light, state="off")
+
+        else:
+            return
 
         self.lg(message, icon=OFF_ICON)
 
