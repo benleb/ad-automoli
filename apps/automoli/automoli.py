@@ -199,6 +199,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         }
 
         # experimental dimming features
+        self.dimming: bool = False
         self.dim: Optional[Dict[str, Union[float, int]]] = {}
         if (dim := self.args.pop("dim", {})) and (seconds_before := dim.pop("seconds_before", None)):
 
@@ -390,7 +391,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
 
-        self.lg("motion_detected(..) handles cleared and cancelled all scheduled timers", level=logging.DEBUG)
+        self.lg(
+            f"motion_detected(..) handles cleared and cancelled all scheduled timers | {self.dimming = }",
+            level=logging.DEBUG,
+        )
 
         # calling motion event handler
         data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
@@ -400,21 +404,22 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Handle motion events."""
         self.lg(
             f"motion_event(..) received '{adu.hl(event)}' event from "
-            f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}'",
+            f"'{data['entity_id'].replace(KEYWORDS['motion'], '')}' | {self.dimming = }",
             level=logging.DEBUG,
         )
 
         # check if automoli is disabled via home assistant entity
-        self.lg(f"motion_event(..) {await self.is_disabled() = }", level=logging.DEBUG)
+        self.lg(f"motion_event(..) {await self.is_disabled() = } | {self.dimming = }", level=logging.DEBUG)
         if await self.is_disabled():
             return
 
         # turn on the lights if not already
-        if not any([await self.get_state(light) == "on" for light in self.lights]):
+        if self.dimming or not any([await self.get_state(light) == "on" for light in self.lights]):
+            self.lg(f"motion_event(..) switching on | {self.dimming = }", level=logging.DEBUG)
             await self.lights_on()
         else:
             self.lg(
-                f"motion_event(..) light in {self.room.capitalize()} already on → refreshing the timer",
+                f"motion_event(..) light in {self.room.capitalize()} already on → refreshing the timer | {self.dimming = }",
                 level=logging.DEBUG,
             )
 
@@ -429,6 +434,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
+
+        self.dimming = False
 
         # cancel scheduled callbacks
         await self.clear_handles(deepcopy(self.handles))
@@ -526,7 +533,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 dim_attributes = {"transition": int(seconds_before)}
                 message = f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(seconds_before)})"
 
-            self.lg(f"dim_lights(..) {dim_attributes = }", level=logging.DEBUG)
+            self.dimming = True
+
+            self.lg(f"dim_lights(..) {dim_attributes = } | {self.dimming = }", level=logging.DEBUG)
 
             for light in self.lights:
                 await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
@@ -540,7 +549,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
 
-        self.lg(f"lights_on(..) {self.thresholds.get('illuminance') = }", level=logging.DEBUG)
+        self.lg(
+            f"lights_on(..) {self.thresholds.get('illuminance') = } | {self.dimming = } | {force = } | {bool(force or self.dimming) = }",
+            level=logging.DEBUG,
+        )
+
+        force = bool(force or self.dimming)
 
         if illuminance_threshold := self.thresholds.get("illuminance"):
 
