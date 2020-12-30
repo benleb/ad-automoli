@@ -143,6 +143,7 @@ key | optional | type | default | description
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`
 ~~`motion_event`~~ | ~~True~~ | ~~string~~ | | **replaced by `motion_state_on/off`**
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
+`transition_on_daytime_switch` | True | bool | False | directly activate a daytime on its start time (instead to just set it as active daytime used if lights are switched from off to on)
 `lights` | True | list/string | *auto detect* | Light entities
 `motion` | True | list/string | *auto detect* | Motion sensor entities
 `illuminance` | True | list/string |  | Illuminance sensor entities

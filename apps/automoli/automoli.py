@@ -183,6 +183,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # general delay
         self.delay = int(self.args.pop("delay", DEFAULT_DELAY))
 
+        # directly switch to new daytime light settings
+        self.transition_on_daytime_switch: bool = bool(self.args.pop("transition_on_daytime_switch", False))
+
         # state values
         self.states = {
             "motion_on": self.args.pop("motion_state_on", None),
@@ -353,8 +356,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 else:
                     is_scene = False
 
+                self.lg(f"switch_daytime(..) {self.transition_on_daytime_switch = }", level=logging.DEBUG)
+
+                action_done = "set"
+
+                if self.transition_on_daytime_switch:
+                    await self.lights_on(force=True)
+                    action_done = "activated"
+
                 self.lg(
-                    f"set {hl(self.room.capitalize())} to {hl(daytime['daytime'])} → "
+                    f"{action_done} daytime {hl(daytime['daytime'])} → "
                     f"{'scene' if is_scene else 'brightness'}: {hl(light_setting)}"
                     f"{'' if is_scene else '%'}, delay: {hl(adu.natural_time(delay))}",
                     icon=DAYTIME_SWITCH_ICON,
@@ -526,7 +537,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg(message, icon=OFF_ICON)
 
-    async def lights_on(self) -> None:
+    async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
 
         self.lg(f"lights_on(..) {self.thresholds.get('illuminance') = }", level=logging.DEBUG)
@@ -554,7 +565,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if (light_setting := self.active.get("light_setting")) and isinstance(light_setting, str):
 
             # last check until we switch the lights on... really!
-            if any([await self.get_state(light) == "on" for light in self.lights]):
+            if not force and any([await self.get_state(light) == "on" for light in self.lights]):
                 self.lg("¯\\_(ツ)_/¯")
                 return
 
@@ -589,7 +600,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             else:
                 # last check until we switch the lights on... really!
-                if any([await self.get_state(light) == "on" for light in self.lights]):
+                if not force and any([await self.get_state(light) == "on" for light in self.lights]):
                     self.lg("¯\\_(ツ)_/¯")
                     return
 
