@@ -30,5 +30,11 @@ A clear and concise description of what you expected to happen.
    -  running mode: **[e.g. virtualenv, hassio, docker]**
  - Python: **[e.g. 3.8.6, 3.9]**
 
+🗒️ **Logs** <!-- please use logs with "debug_log: true", thanks! -->
+
+```log
+log log log...
+```
+
 🧁 **Additional context**
 Add any other context about the problem here.
