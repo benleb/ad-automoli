@@ -361,7 +361,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                 action_done = "set"
 
-                if self.transition_on_daytime_switch:
+                if self.transition_on_daytime_switch and any(
+                    [await self.get_state(light) == "on" for light in self.lights]
+                ):
                     await self.lights_on(force=True)
                     action_done = "activated"
 
