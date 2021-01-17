@@ -279,10 +279,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # enumerate optional sensors & disable optional features if sensors are not available
         for sensor_type in SENSORS_OPTIONAL:
 
+            self.lg(f"{sensor_type = } | {self.thresholds = }", level=logging.DEBUG)
+
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
-                self.sensors[sensor_type] = self.listr(self.args.pop("motion", None)) or await self.find_sensors(
+                self.sensors[sensor_type] = self.listr(self.args.pop(sensor_type, None)) or await self.find_sensors(
                     KEYWORDS[sensor_type], self.room, states
                 )
+
+                self.lg(f"{self.sensors[sensor_type] = }", level=logging.DEBUG)
 
             else:
                 self.lg(
