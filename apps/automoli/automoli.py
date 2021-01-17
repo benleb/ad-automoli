@@ -546,7 +546,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         else:
             return
 
-        self.lg(message, icon=OFF_ICON)
+        self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
 
     async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
