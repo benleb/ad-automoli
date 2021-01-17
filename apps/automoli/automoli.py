@@ -73,7 +73,7 @@ def hl_entity(entity: str) -> str:
 
 def natural_time(duration: Union[int, float]) -> str:
 
-    duration_min, duration_sec = divmod(duration, float(SECONDS_PER_MIN))
+    duration_min, duration_sec = divmod(int(duration), int(SECONDS_PER_MIN))
 
     # append suitable unit
     if duration >= SECONDS_PER_MIN:
@@ -425,7 +425,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.lights_on()
         else:
             self.lg(
-                f"motion_event(..) light in {self.room.capitalize()} already on → refreshing the timer | {self.dimming = }",
+                f"motion_event(..) light in {self.room.capitalize()} already on → refreshing the timer"
+                f" | {self.dimming = }",
                 level=logging.DEBUG,
             )
 
@@ -556,7 +557,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn on the lights."""
 
         self.lg(
-            f"lights_on(..) {self.thresholds.get('illuminance') = } | {self.dimming = } | {force = } | {bool(force or self.dimming) = }",
+            f"lights_on(..) {self.thresholds.get('illuminance') = } | {self.dimming = } | "
+            f"{force = } | {bool(force or self.dimming) = }",
             level=logging.DEBUG,
         )
 
@@ -742,6 +744,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
 
             # info about next daytime
+            next_dt_name = DEFAULT_NAME
             try:
                 next_starttime = str(daytimes[(idx + 1) % len(daytimes)].get("starttime"))
                 if next_starttime.count(":") == 1:
