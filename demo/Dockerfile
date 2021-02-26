@@ -15,7 +15,7 @@ WORKDIR /usr/src/app
 RUN apk add --no-cache curl tzdata
 
 # git: install appdaemon from source
-RUN apk add --virtual build git gcc libffi-dev openssl-dev musl-dev && \
+RUN apk add --virtual build cargo git gcc libffi-dev openssl-dev musl-dev && \
     git clone https://github.com/AppDaemon/appdaemon.git /usr/src/app && cd /usr/src/app && git checkout ${APPDAEMON_VERSION} && \
     pip install --no-cache-dir . && \
     apk del build
