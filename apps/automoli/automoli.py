@@ -18,7 +18,7 @@ from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 import hassapi as hass
 
 
-__version__ = "0.10.0"
+__version__ = "0.10.1"
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
