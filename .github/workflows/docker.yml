@@ -6,15 +6,19 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.fail-ok }}
     strategy:
-      max-parallel: 3
+      max-parallel: 5
       fail-fast: false
       matrix:
-        platform: ["linux/amd64", "linux/arm64", "linux/arm/v7"]
+        platform: ["linux/amd64", "linux/arm64"]
         fail-ok: [false]
-        include: [{platform: "linux/arm/v7", fail-ok: true}]
+        os: ["ubuntu-latest"]
+        include:
+          - {os: "macos-latest", platform: "darwin/amd64", fail-ok: true}
+          - {os: "macos-latest", platform: "darwin/arm64", fail-ok: true}
+          - {platform: "linux/arm/v7", fail-ok: true}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
