@@ -41,9 +41,7 @@ DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
 ]
 DEFAULT_LOGLEVEL = "INFO"
 
-
 EVENT_MOTION_XIAOMI = "xiaomi_aqara.motion"
-
 
 RANDOMIZE_SEC = 5
 SECONDS_PER_MIN: int = 60
@@ -237,6 +235,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "method": dim_method.value,
             }
 
+        # night mode settings
+        self.night_mode: Dict[str, Union[int, str]] = {}
+        if night_mode := self.args.pop("night_mode", {}):
+            self.night_mode = await self.configure_night_mode(night_mode)
+
         # on/off switch via input.boolean
         self.disable_switch_entities: Set[str] = self.listr(
             self.args.pop("disable_switch_entities", set())
@@ -372,6 +375,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
             }
         )
 
+        # add night mode to config if enabled
+        if self.night_mode:
+            self.args.update({"night_mode": self.night_mode})
+
+        # add disable entity to config if given
         if self.disable_switch_entities:
             self.args.update({"disable_switch_entities": self.disable_switch_entities})
             self.args.update({"disable_switch_states": self.disable_switch_states})
@@ -684,7 +692,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     )
                     return
 
-        if (light_setting := self.active.get("light_setting")) and isinstance(light_setting, str):
+        light_setting = (
+            self.active.get("light_setting")
+            if not self.night_mode
+            else self.night_mode.get("light")
+        )
+
+        if isinstance(light_setting, str):
 
             # last check until we switch the lights on... really!
             if not force and any([await self.get_state(light) == "on" for light in self.lights]):
@@ -719,9 +733,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 icon=ON_ICON,
             )
 
-        elif isinstance(self.active["light_setting"], int):
+        elif isinstance(light_setting, int):
 
-            if self.active["light_setting"] == 0:
+            if light_setting == 0:
                 await self.lights_off({})
 
             else:
@@ -739,12 +753,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         await self.call_service(
                             "homeassistant/turn_on",
                             entity_id=entity,
-                            brightness_pct=self.active["light_setting"],
+                            brightness_pct=light_setting,
                         )
 
                         self.lg(
                             f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
-                            f"brightness: {hl(self.active['light_setting'])}%"
+                            f"brightness: {hl(light_setting)}%"
                             f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                             icon=ON_ICON,
                         )
@@ -752,9 +766,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         self._switched_on_by_automoli.add(entity)
 
         else:
-            raise ValueError(
-                f"invalid brightness/scene: {self.active['light_setting']!s} " f"in {self.room}"
-            )
+            raise ValueError(f"invalid brightness/scene: {light_setting!s} " f"in {self.room}")
 
     async def lights_off(self, kwargs: Dict[str, Any]) -> None:
         """Turn off the lights."""
@@ -831,6 +843,20 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 matches.append(entity_id)
 
         return matches
+
+    async def configure_night_mode(
+        self, night_mode: Dict[str, Union[int, str]]
+    ) -> Dict[str, Union[int, str]]:
+
+        # check if a enable/disable entity is given and exists
+        if not ((nm_entity := night_mode.pop("entity")) and self.entity_exists(nm_entity)):
+            self.lg("no night_mode entity given", level=logging.DEBUG)
+            return {}
+
+        if not (nm_light_setting := night_mode.pop("light")):
+            return {}
+
+        return {"entity": nm_entity, "light": nm_light_setting}
 
     async def build_daytimes(
         self, daytimes: List[Any]
