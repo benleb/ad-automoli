@@ -18,7 +18,7 @@ jobs:
         include:
           - {os: "macos-latest", platform: "darwin/amd64", fail-ok: true}
           - {os: "macos-latest", platform: "darwin/arm64", fail-ok: true}
-          - {platform: "linux/arm/v7", fail-ok: true}
+          - {os: "ubuntu-latest", platform: "linux/arm/v7", fail-ok: true}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
