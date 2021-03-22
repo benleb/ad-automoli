@@ -694,7 +694,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         light_setting = (
             self.active.get("light_setting")
-            if await self.get_state(self.night_mode["entity"]) == "off"
+            if not (self.night_mode and await self.get_state(self.night_mode["entity"]) == "off")
             else self.night_mode.get("light")
         )
 
