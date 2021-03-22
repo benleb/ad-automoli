@@ -694,7 +694,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         light_setting = (
             self.active.get("light_setting")
-            if not self.night_mode
+            if await self.get_state(self.night_mode["entity"]) == "off"
             else self.night_mode.get("light")
         )
 
@@ -849,7 +849,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     ) -> Dict[str, Union[int, str]]:
 
         # check if a enable/disable entity is given and exists
-        if not ((nm_entity := night_mode.pop("entity")) and self.entity_exists(nm_entity)):
+        if not ((nm_entity := night_mode.pop("entity")) and await self.entity_exists(nm_entity)):
             self.lg("no night_mode entity given", level=logging.DEBUG)
             return {}
 
