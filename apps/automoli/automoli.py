@@ -160,7 +160,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             entity_list += list_or_string
         elif list_or_string:
             self.lg(
-                f"{list_or_string} is of type {type(list_or_string)} and not 'Union[List[str], Set[str], str]'"
+                f"{list_or_string} is of type {type(list_or_string)} and "
+                f"not 'Union[List[str], Set[str], str]'"
             )
 
         return set(filter(self.entity_exists, entity_list) if entities_exist else entity_list)
@@ -298,7 +299,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg("")
             self.lg(
                 f"{hl('No lights/sensors')} given and none found with name: "
-                f"'{hl(EntityType.LIGHT.prefix)}*{hl(self.room)}*' or '{hl(EntityType.MOTION.prefix)}*{hl(self.room)}*'",
+                f"'{hl(EntityType.LIGHT.prefix)}*{hl(self.room)}*' or "
+                f"'{hl(EntityType.MOTION.prefix)}*{hl(self.room)}*'",
                 icon="⚠️ ",
             )
             self.lg("")
@@ -475,7 +477,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles(deepcopy(self.handles))
 
         self.lg(
-            f"{stack()[0][3]}() handles cleared and cancelled all scheduled timers | {self.dimming = }",
+            f"{stack()[0][3]}() handles cleared and cancelled all scheduled timers"
+            f" | {self.dimming = }",
             level=logging.DEBUG,
         )
 
@@ -506,7 +509,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.lights_on()
         else:
             self.lg(
-                f"{stack()[0][3]}() light in {self.room.capitalize()} already on → refreshing the timer"
+                f"{stack()[0][3]}() light in {self.room.capitalize()} already on → refreshing timer"
                 f" | {self.dimming = }",
                 level=logging.DEBUG,
             )
@@ -521,7 +524,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
             f"{stack()[0][3]}() {self.handles = } cleared, canceling {handles = }",
             level=logging.DEBUG,
         )
-        await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
+
+        await asyncio.gather(
+            *[self.cancel_timer(handle) for handle in handles if await self.timer_running(handle)]
+        )
 
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
@@ -582,7 +588,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     continue
 
                 self.lg(
-                    f"{current_humidity = } >= {humidity_threshold = } = {current_humidity >= humidity_threshold}",
+                    f"{current_humidity = } >= {humidity_threshold = } "
+                    f"= {current_humidity >= humidity_threshold}",
                     level=logging.DEBUG,
                 )
 
@@ -629,13 +636,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if dim_method == DimMethod.STEP:
                 dim_attributes = {"brightness_step_pct": int(self.dim["brightness_step_pct"])}
                 message = (
-                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} | "
-                    f"{hl('off')} in {natural_time(seconds_before)}"
+                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} |"
+                    f" {hl('off')} in {natural_time(seconds_before)}"
                 )
 
             elif dim_method == DimMethod.TRANSITION:
                 dim_attributes = {"transition": int(seconds_before)}
-                message = f"{hl(self.room.capitalize())} → transition to {hl('off')} ({natural_time(seconds_before)})"
+                message = (
+                    f"{hl(self.room.capitalize())} → transition to "
+                    f"{hl('off')} ({natural_time(seconds_before)})"
+                )
 
             self.dimming = True
 
@@ -661,8 +671,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn on the lights."""
 
         self.lg(
-            f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | {self.dimming = } | "
-            f"{force = } | {bool(force or self.dimming) = }",
+            f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = }"
+            f" | {self.dimming = } | {force = } | {bool(force or self.dimming) = }",
             level=logging.DEBUG,
         )
 
@@ -673,7 +683,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # the "eco mode" check
             for sensor in self.sensors[EntityType.ILLUMINANCE.idx]:
                 self.lg(
-                    f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | {float(await self.get_state(sensor)) = }",
+                    f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | "
+                    f"{float(await self.get_state(sensor)) = }",
                     level=logging.DEBUG,
                 )
                 try:
@@ -688,7 +699,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                 except ValueError as error:
                     self.lg(
-                        f"could not parse illuminance '{await self.get_state(sensor)}' from '{sensor}': {error}"
+                        f"could not parse illuminance '{await self.get_state(sensor)}' "
+                        f"from '{sensor}': {error}"
                     )
                     return
 
@@ -784,7 +796,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles(deepcopy(self.handles))
 
         self.lg(
-            f"{stack()[0][3]}() {any([await self.get_state(entity) == 'on' for entity in self.lights]) = } | {self.lights = }",
+            f"{stack()[0][3]}() "
+            f"{any([await self.get_state(entity) == 'on' for entity in self.lights]) = }"
+            f" | {self.lights = }",
             level=logging.DEBUG,
         )
 
@@ -808,7 +822,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
             # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
-            # mod: https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
+            # mod:
+            # https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
             for sensor in self.sensors[EntityType.MOTION.idx]:
                 await self.set_state(
                     sensor,
