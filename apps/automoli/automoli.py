@@ -525,9 +525,13 @@ class AutoMoLi(hass.Hass):  # type: ignore
             level=logging.DEBUG,
         )
 
-        await asyncio.gather(
-            *[self.cancel_timer(handle) for handle in handles if await self.timer_running(handle)]
-        )
+        self.lg(f"{bool(self.timer_running) = }")
+
+        # appdaemon >= 4.0.7
+        if self.timer_running:
+            handles = filter(self.timer_running, handles)
+
+        await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
 
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
