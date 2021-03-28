@@ -525,8 +525,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
             level=logging.DEBUG,
         )
 
-        self.lg(f"{bool(self.timer_running) = }")
-
         # appdaemon >= 4.0.7
         if self.timer_running:
             handles = filter(self.timer_running, handles)
