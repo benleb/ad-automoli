@@ -888,7 +888,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 starttime = daytime.get("starttime")
                 if starttime.count(":") == 1:
                     starttime += ":00"
-                dt_start = await self.parse_time(starttime, aware=True)
+                dt_start = (await self.parse_time(starttime, aware=True)).replace(microsecond=0)
+                daytime["starttime"] = dt_start
             except ValueError as error:
                 raise ValueError(f"missing start time in daytime '{dt_name}': {error}")
 
@@ -908,7 +909,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if next_starttime.count(":") == 1:
                     next_starttime += ":00"
                 next_dt_name = str(daytimes[(idx + 1) % len(daytimes)].get("name"))
-                next_dt_start = await self.parse_time(next_starttime, aware=True)
+                next_dt_start = (await self.parse_time(next_starttime, aware=True)).replace(
+                    microsecond=0
+                )
             except ValueError as error:
                 raise ValueError(f"missing start time in daytime '{next_dt_name}': {error}")
 
