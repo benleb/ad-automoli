@@ -525,17 +525,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
             level=logging.DEBUG,
         )
 
-        # appdaemon >= 4.0.7
-        if self.timer_running:
-            await asyncio.gather(
-                *[
-                    self.cancel_timer(handle)
-                    for handle in handles
-                    if await self.timer_running(handle)
-                ]
-            )
+        # # appdaemon >= 4.0.7
+        # if self.timer_running:
+        #     await asyncio.gather(
+        #         *[
+        #             self.cancel_timer(handle)
+        #             for handle in handles
+        #             if await self.timer_running(handle)
+        #         ]
+        #     )
 
-            return
+        #     return
 
         await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
 
