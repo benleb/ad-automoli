@@ -373,9 +373,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     )
                 )
 
-        # callback handles to switch lights off
-        self.handles: Set[str] = set()
-
         self.args.update(
             {
                 "room": self.room_name.capitalize(),
@@ -384,13 +381,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 "daytimes": daytimes,
                 "lights": self.lights,
                 "dim": self.dim,
-                "threshold": self.thresholds,
                 "sensors": self.sensors,
                 "disable_hue_groups": self.disable_hue_groups,
                 "only_own_events": self.only_own_events,
                 "loglevel": self.loglevel,
             }
         )
+
+        if self.thresholds:
+            self.args.update({"thresholds": self.thresholds})
 
         # add night mode to config if enabled
         if self.night_mode:
@@ -471,7 +470,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.refresh_timer()
         else:
             # cancel scheduled callbacks
-            await self.clear_handles(deepcopy(self.handles))
+            await self.clear_handles()
 
     async def motion_detected(
         self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
@@ -489,7 +488,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
 
         # cancel scheduled callbacks
-        await self.clear_handles(deepcopy(self.handles))
+        await self.clear_handles()
 
         self.lg(
             f"{stack()[0][3]}() handles cleared and cancelled all scheduled timers"
@@ -536,11 +535,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
         required_version = required_version if required_version else "4.0.7"
         return bool(StrictVersion(self.get_ad_version()) >= StrictVersion(required_version))
 
+    async def clear_handles(self, handles: Set[str] = None) -> None:
         """clear scheduled timers/callbacks."""
-        self.handles.clear()
+
+        if not handles:
+            handles = deepcopy(self.room.handles_automoli)
+
+        self.room.handles_automoli.clear()
+
         self.lg(
-            f"{stack()[0][3]}() {self.handles = } cleared, canceling {handles = }",
-            level=logging.DEBUG,
+            f"{stack()[0][3]}() {self.room.handles_automoli = } | {handles = }", level=logging.DEBUG
         )
 
         if self.has_min_ad_version("4.0.7"):
@@ -560,28 +564,34 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.dimming = False
 
         # cancel scheduled callbacks
-        await self.clear_handles(deepcopy(self.handles))
-        self.lg(f"{stack()[0][3]}() handles cleared → {self.handles = }", level=logging.DEBUG)
+        await self.clear_handles()
 
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
 
-            self.lg(f"{stack()[0][3]}() {self.active = }", level=logging.DEBUG)
+            self.lg(
+                f"{stack()[0][3]}() {self.active = } | {self.dim = } | {delay = }",
+                level=logging.DEBUG,
+            )
 
             if self.dim:
-                dim_in_sec = int(delay) - self.dim["seconds_before"] + 2
-                self.lg(
-                    f"{stack()[0][3]}() {self.dim = }, dimming in {dim_in_sec}", level=logging.DEBUG
-                )
+                dim_in_sec = int(delay) - self.dim["seconds_before"]
+                self.lg(f"{stack()[0][3]}() {self.dim = } | {dim_in_sec}", level=logging.DEBUG)
 
-                dim_handle = await self.run_in(self.dim_lights, (dim_in_sec))
-                self.handles.add(dim_handle)
-                self.lg(f"{stack()[0][3]}() {dim_handle = } -> {self.handles}", level=logging.DEBUG)
+                handle = await self.run_in(self.dim_lights, (dim_in_sec))
 
-            # schedule "turn off" callback
-            off_handle = await self.run_in(self.lights_off, delay)
-            self.handles.add(off_handle)
-            self.lg(f"{stack()[0][3]}() {off_handle = } -> {self.handles}", level=logging.DEBUG)
+            else:
+                handle = await self.run_in(self.lights_off, delay)
+
+            self.room.handles_automoli.add(handle)
+
+            self.lg(
+                f"{stack()[0][3]}() {handle = } -> {self.room.handles_automoli}",
+                level=logging.DEBUG,
+            )
+
+    async def night_mode_active(self) -> bool:
+        return bool(self.night_mode and await self.get_state(self.night_mode["entity"]) == "on")
 
     async def is_disabled(self) -> bool:
         """check if automoli is disabled via home assistant entity"""
@@ -619,7 +629,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 )
 
                 if current_humidity >= humidity_threshold:
-                    # blocker.append(sensor)
+
                     await self.refresh_timer()
                     self.lg(
                         f"🛁 no motion in {hl(self.room.capitalize())} since "
