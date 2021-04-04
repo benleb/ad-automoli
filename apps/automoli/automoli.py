@@ -286,6 +286,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             appdaemon=self.get_ad_api(),
         )
 
+        self.handle_turned_off: Optional[str] = None
+
         # define light entities switched by automoli
         self.lights: Set[str] = self.args.pop("lights", set())
         if not self.lights:
@@ -676,19 +678,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 f"{stack()[0][3]}() {dim_attributes = } | {self.dimming = }", level=logging.DEBUG
             )
 
-            self.lg(
-                f"dimming {hl(self.room.capitalize())} | method: {dim_method.name.capitalize()}",
-                icon=DIM_ICON,
-            )
-
             for light in self.lights:
                 await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
                 await self.set_state(entity=light, state="off")
 
+            self.handle_turned_off = await self.run_in(self.turned_off, seconds_before)
+
+            self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
+
         else:
             return
-
-        self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
 
     async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
@@ -837,11 +836,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     await self.call_service("homeassistant/turn_off", entity_id=entity)
                     at_least_one_turned_off = True
             if at_least_one_turned_off:
-                self.lg(
-                    f"no motion in {hl(self.room.capitalize())} since "
-                    f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
-                    icon=OFF_ICON,
-                )
+                await self.turned_off()
 
             # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
             # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
@@ -855,6 +850,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         "attributes", {}
                     ),
                 )
+
+    async def turned_off(self, kwargs: Dict[str, Any] = None) -> None:
+        # cancel scheduled callbacks
+        await self.clear_handles()
+
+        self.lg(
+            f"no motion in {hl(self.room.name.capitalize())} since "
+            f"{hl(natural_time(int(self.active['delay'])))} → turned {hl(f'off')}",
+            icon=OFF_ICON,
+        )
 
     async def find_sensors(
         self, keyword: str, room_name: str, states: Dict[str, Dict[str, Any]]
