@@ -738,7 +738,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         light_setting = (
             self.active.get("light_setting")
-            if not (self.night_mode and await self.get_state(self.night_mode["entity"]) == "off")
+            if not await self.night_mode_active()
             else self.night_mode.get("light")
         )
 
@@ -825,7 +825,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             return
 
         # cancel scheduled callbacks
-        await self.clear_handles(deepcopy(self.handles))
+        await self.clear_handles()
 
         self.lg(
             f"{stack()[0][3]}() "
