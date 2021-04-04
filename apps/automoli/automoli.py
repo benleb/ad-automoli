@@ -75,12 +75,6 @@ KEYWORDS = {
 }
 
 
-# version checks
-py3_or_higher = version_info.major >= 3
-py37_or_higher = py3_or_higher and version_info.minor >= 7
-py38_or_higher = py3_or_higher and version_info.minor >= 8
-
-
 def install_pip_package(
     pkg: str, version: str = "", install_name: Optional[str] = None, pre_release: bool = False
 ) -> None:
@@ -116,8 +110,15 @@ def install_pip_package(
 
 
 # install adutils library
-install_pip_package("adutils", version="==0.5.0")
-from adutils import hl, hl_entity, natural_time  # noqa
+install_pip_package("adutils", version="==0.6.0")
+from adutils import (  # noqa
+    Room,
+    hl,
+    natural_time,
+    py37_or_higher,
+    py38_or_higher,
+    py39_or_higher,
+)
 
 
 class DimMethod(IntEnum):
