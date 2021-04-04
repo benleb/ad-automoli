@@ -9,10 +9,10 @@ import logging
 
 from copy import deepcopy
 from datetime import time
+from distutils.version import StrictVersion
 from enum import Enum, IntEnum
 from inspect import stack
 from pprint import pformat
-from sys import version_info
 from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
 
 import hassapi as hass
@@ -526,7 +526,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if event != "state_changed_detection":
             await self.refresh_timer()
 
-    async def clear_handles(self, handles: Set[str]) -> None:
+    def has_min_ad_version(self, required_version: str) -> bool:
+        required_version = required_version if required_version else "4.0.7"
+        return bool(StrictVersion(self.get_ad_version()) >= StrictVersion(required_version))
+
         """clear scheduled timers/callbacks."""
         self.handles.clear()
         self.lg(
@@ -534,16 +537,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
             level=logging.DEBUG,
         )
 
-        # appdaemon >= 4.0.7
-        # await asyncio.gather(
-        #     *[
-        #         self.cancel_timer(handle)
-        #         for handle in handles
-        #         if await self.timer_running(handle)
-        #     ]
-        # )
-
-        await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
+        if self.has_min_ad_version("4.0.7"):
+            await asyncio.gather(
+                *[
+                    self.cancel_timer(handle)
+                    for handle in handles
+                    if await self.timer_running(handle)
+                ]
+            )
+        else:
+            await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
 
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
