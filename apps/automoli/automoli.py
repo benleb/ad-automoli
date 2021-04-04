@@ -179,11 +179,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.lg(f"setting log level to {logging.getLevelName(self.loglevel)}", level=logging.DEBUG)
 
         # python version check
+        if not py39_or_higher:
+            self.lg("")
+            self.lg(f" hey, what about trying {hl('Python >= 3.9')}‽ 🤪")
+            self.lg("")
         if not py38_or_higher:
             icon_alert = "⚠️"
             self.lg("", icon=icon_alert)
             self.lg("")
-            self.lg(f" please update to {hl('Python >= 3.8')}! 🤪", icon=icon_alert)
+            self.lg(f" please update to {hl('Python >= 3.8')} at least! 🤪", icon=icon_alert)
             self.lg("")
             self.lg("", icon=icon_alert)
         if not py37_or_higher:
