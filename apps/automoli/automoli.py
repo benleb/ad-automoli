@@ -190,7 +190,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             raise ValueError
 
         # set room
-        self.room = str(self.args.pop("room"))
+        self.room_name = str(self.args.pop("room"))
 
         # general delay
         self.delay = int(self.args.pop("delay", DEFAULT_DELAY))
@@ -274,6 +274,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # entity lists for initial discovery
         states = await self.get_state()
 
+        self.room = Room(
+            name=self.room_name,
+            door_window={},
+            temperature=(),
+            push_data=dict(),
+            appdaemon=self.get_ad_api(),
+        )
+
         # define light entities switched by automoli
         self.lights: Set[str] = self.args.pop("lights", set())
         if not self.lights:
@@ -282,7 +290,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self.lights.add(room_light_group)
             else:
                 self.lights.update(
-                    await self.find_sensors(EntityType.LIGHT.prefix, self.room, states)
+                    await self.find_sensors(EntityType.LIGHT.prefix, self.room_name, states)
                 )
 
         # sensors
@@ -291,7 +299,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # enumerate sensors for motion detection
         self.sensors[EntityType.MOTION.idx] = self.listr(
             self.args.pop(
-                "motion", await self.find_sensors(EntityType.MOTION.prefix, self.room, states)
+                "motion", await self.find_sensors(EntityType.MOTION.prefix, self.room_name, states)
             )
         )
 
@@ -317,7 +325,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
                 self.sensors[sensor_type] = self.listr(
                     self.args.pop(sensor_type, None)
-                ) or await self.find_sensors(KEYWORDS[sensor_type], self.room, states)
+                ) or await self.find_sensors(KEYWORDS[sensor_type], self.room_name, states)
 
                 self.lg(f"{self.sensors[sensor_type] = }", level=logging.DEBUG)
 
@@ -364,7 +372,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.args.update(
             {
-                "room": self.room.capitalize(),
+                "room": self.room_name.capitalize(),
                 "delay": self.delay,
                 "active_daytime": self.active_daytime,
                 "daytimes": daytimes,
@@ -510,8 +518,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.lights_on()
         else:
             self.lg(
-                f"{stack()[0][3]}() light in {self.room.capitalize()} already on → refreshing timer"
-                f" | {self.dimming = }",
+                f"{stack()[0][3]}() light in {self.room.name.capitalize()} already on → refreshing "
+                f"timer | {self.dimming = }",
                 level=logging.DEBUG,
             )
 
@@ -651,7 +659,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             elif dim_method == DimMethod.TRANSITION:
                 dim_attributes = {"transition": int(seconds_before)}
                 message = (
-                    f"{hl(self.room.capitalize())} → transition to "
+                    f"{hl(self.room.name.capitalize())} → transition to "
                     f"{hl('off')} ({natural_time(seconds_before)})"
                 )
 
@@ -746,7 +754,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self._switched_on_by_automoli.add(item)
 
             self.lg(
-                f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
+                f"{hl(self.room.name.capitalize())} turned {hl(f'on')} → "
                 f"{'hue' if self.active['is_hue_group'] else 'ha'} scene: "
                 f"{hl(light_setting.replace('scene.', ''))}"
                 f" | delay: {hl(natural_time(int(self.active['delay'])))}",
@@ -777,7 +785,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         )
 
                         self.lg(
-                            f"{hl(self.room.capitalize())} turned {hl(f'on')} → "
+                            f"{hl(self.room.name.capitalize())} turned {hl(f'on')} → "
                             f"brightness: {hl(light_setting)}%"
                             f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                             icon=ON_ICON,
