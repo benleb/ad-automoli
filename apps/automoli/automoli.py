@@ -110,7 +110,7 @@ def install_pip_package(
 
 
 # install adutils library
-install_pip_package("adutils", version="==0.6.0")
+install_pip_package("adutils", version="==0.6.1")
 from adutils import (  # noqa
     Room,
     hl,
@@ -278,20 +278,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # entity lists for initial discovery
         states = await self.get_state()
 
-        self.room = Room(
-            name=self.room_name,
-            door_window={},
-            temperature=(),
-            push_data=dict(),
-            appdaemon=self.get_ad_api(),
-        )
-
         self.handle_turned_off: Optional[str] = None
 
         # define light entities switched by automoli
         self.lights: Set[str] = self.args.pop("lights", set())
         if not self.lights:
-            room_light_group = f"light.{self.room}"
+            room_light_group = f"light.{self.room_name}"
             if await self.entity_exists(room_light_group):
                 self.lights.add(room_light_group)
             else:
@@ -307,6 +299,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.args.pop(
                 "motion", await self.find_sensors(EntityType.MOTION.prefix, self.room_name, states)
             )
+        )
+
+        self.room = Room(
+            name=self.room_name,
+            room_lights=self.lights,
+            motion=self.sensors[EntityType.MOTION.idx],
+            door_window={},
+            temperature=(),
+            push_data=dict(),
+            appdaemon=self.get_ad_api(),
         )
 
         # requirements check
@@ -325,8 +327,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # enumerate optional sensors & disable optional features if sensors are not available
         for sensor_type in SENSORS_OPTIONAL:
-
-            self.lg(f"{sensor_type = } | {self.thresholds = }", level=logging.DEBUG)
 
             if sensor_type in self.thresholds and self.thresholds[sensor_type]:
                 self.sensors[sensor_type] = self.listr(
@@ -426,7 +426,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     is_scene = False
 
                 self.lg(
-                    f"{stack()[0][3]}() {self.transition_on_daytime_switch = }", level=logging.DEBUG
+                    f"{stack()[0][3]}: {self.transition_on_daytime_switch = }", level=logging.DEBUG
                 )
 
                 action_done = "set"
@@ -456,7 +456,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # starte the timer if motion is cleared
         self.lg(
-            f"{stack()[0][3]}() {entity} changed {attribute} from {old} to {new}",
+            f"{stack()[0][3]}: {entity} changed {attribute} from {old} to {new}",
             level=logging.DEBUG,
         )
 
@@ -483,7 +483,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """
 
         self.lg(
-            f"{stack()[0][3]}() {entity} changed {attribute} from {old} to {new}",
+            f"{stack()[0][3]}: {entity} changed {attribute} from {old} to {new}",
             level=logging.DEBUG,
         )
 
@@ -491,7 +491,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles()
 
         self.lg(
-            f"{stack()[0][3]}() handles cleared and cancelled all scheduled timers"
+            f"{stack()[0][3]}: handles cleared and cancelled all scheduled timers"
             f" | {self.dimming = }",
             level=logging.DEBUG,
         )
@@ -504,14 +504,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Main handler for motion events."""
 
         self.lg(
-            f"{stack()[0][3]}() received '{hl(event)}' event from "
+            f"{stack()[0][3]}: received '{hl(event)}' event from "
             f"'{data['entity_id'].replace(EntityType.MOTION.prefix, '')}' | {self.dimming = }",
             level=logging.DEBUG,
         )
 
         # check if automoli is disabled via home assistant entity
         self.lg(
-            f"{stack()[0][3]}() {await self.is_disabled() = } | {self.dimming = }",
+            f"{stack()[0][3]}: {await self.is_disabled() = } | {self.dimming = }",
             level=logging.DEBUG,
         )
         if await self.is_disabled():
@@ -519,11 +519,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # turn on the lights if not already
         if self.dimming or not any([await self.get_state(light) == "on" for light in self.lights]):
-            self.lg(f"{stack()[0][3]}() switching on | {self.dimming = }", level=logging.DEBUG)
+            self.lg(f"{stack()[0][3]}: switching on | {self.dimming = }", level=logging.DEBUG)
             await self.lights_on()
         else:
             self.lg(
-                f"{stack()[0][3]}() light in {self.room.name.capitalize()} already on → refreshing "
+                f"{stack()[0][3]}: light in {self.room.name.capitalize()} already on → refreshing "
                 f"timer | {self.dimming = }",
                 level=logging.DEBUG,
             )
@@ -540,12 +540,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         if not handles:
             handles = deepcopy(self.room.handles_automoli)
-
-        self.room.handles_automoli.clear()
-
-        self.lg(
-            f"{stack()[0][3]}() {self.room.handles_automoli = } | {handles = }", level=logging.DEBUG
-        )
+            self.room.handles_automoli.clear()
 
         if self.has_min_ad_version("4.0.7"):
             await asyncio.gather(
@@ -558,9 +553,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
         else:
             await asyncio.gather(*[self.cancel_timer(handle) for handle in handles])
 
+        self.lg(f"{stack()[0][3]}: cancelled scheduled callbacks", level=logging.DEBUG)
+
     async def refresh_timer(self) -> None:
         """refresh delay timer."""
 
+        fnn = f"{stack()[0][3]}:"
+
+        # leave dimming state
         self.dimming = False
 
         # cancel scheduled callbacks
@@ -569,14 +569,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
 
-            self.lg(
-                f"{stack()[0][3]}() {self.active = } | {self.dim = } | {delay = }",
-                level=logging.DEBUG,
-            )
+            self.lg(f"{fnn} {self.active = } | {delay = } | {self.dim = }", level=logging.DEBUG)
 
             if self.dim:
                 dim_in_sec = int(delay) - self.dim["seconds_before"]
-                self.lg(f"{stack()[0][3]}() {self.dim = } | {dim_in_sec}", level=logging.DEBUG)
+                self.lg(f"{fnn} {dim_in_sec = }", level=logging.DEBUG)
 
                 handle = await self.run_in(self.dim_lights, (dim_in_sec))
 
@@ -586,7 +583,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.room.handles_automoli.add(handle)
 
             self.lg(
-                f"{stack()[0][3]}() {handle = } -> {self.room.handles_automoli}",
+                f"{fnn} scheduled callback to switch off the lights in {dim_in_sec}s "
+                f"({(await self.info_timer(handle))[0].isoformat()}) | "
+                f"handles: {self.room.handles_automoli = }",
                 level=logging.DEBUG,
             )
 
@@ -607,11 +606,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
     async def is_blocked(self) -> bool:
 
         # the "shower case"
-        self.lg(f"{self.thresholds.get(EntityType.HUMIDITY.idx) = }", level=logging.DEBUG)
-
         if humidity_threshold := self.thresholds.get("humidity"):
-
-            self.lg(f"{self.sensors[EntityType.HUMIDITY.idx] = }", level=logging.DEBUG)
 
             for sensor in self.sensors[EntityType.HUMIDITY.idx]:
                 try:
@@ -623,7 +618,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     continue
 
                 self.lg(
-                    f"{current_humidity = } >= {humidity_threshold = } "
+                    f"{stack()[0][3]}: {current_humidity = } >= {humidity_threshold = } "
                     f"= {current_humidity >= humidity_threshold}",
                     level=logging.DEBUG,
                 )
@@ -646,7 +641,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         message: str = ""
 
         self.lg(
-            f"{stack()[0][3]}() {await self.is_disabled() = } | {await self.is_blocked() = }",
+            f"{stack()[0][3]}: {await self.is_disabled() = } | {await self.is_blocked() = }",
             level=logging.DEBUG,
         )
 
@@ -666,7 +661,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             seconds_before = int(self.dim["seconds_before"])
             dim_attributes: Dict[str, int] = {}
 
-            self.lg(f"{stack()[0][3]}() {dim_method = } - {seconds_before = }", level=logging.DEBUG)
+            self.lg(f"{stack()[0][3]}: {dim_method = } | {seconds_before = }", level=logging.DEBUG)
 
             if dim_method == DimMethod.STEP:
                 dim_attributes = {"brightness_step_pct": int(self.dim["brightness_step_pct"])}
@@ -685,25 +680,43 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.dimming = True
 
             self.lg(
-                f"{stack()[0][3]}() {dim_attributes = } | {self.dimming = }", level=logging.DEBUG
+                f"{stack()[0][3]}: {dim_attributes = } | {self.dimming = }", level=logging.DEBUG
             )
 
-            for light in self.lights:
-                await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
-                await self.set_state(entity=light, state="off")
+            self.lg(f"{stack()[0][3]}: {self.room.room_lights = }", level=logging.DEBUG)
+            self.lg(f"{stack()[0][3]}: {self.room.lights_dimmable = }", level=logging.DEBUG)
+            self.lg(f"{stack()[0][3]}: {self.room.lights_undimmable = }", level=logging.DEBUG)
 
-            self.handle_turned_off = await self.run_in(self.turned_off, seconds_before)
+            if self.room.lights_undimmable:
+                for light in self.room.lights_dimmable:
 
-            self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
+                    await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
+                    await self.set_state(entity=light, state="off")
 
-        else:
-            return
+        # workaround to switch off lights that do not support dimming
+        if self.room.room_lights:
+            self.room.handles_automoli.add(
+                await self.run_in(
+                    self.turn_off_lights,
+                    seconds_before,
+                    lights=self.room.room_lights,
+                )
+            )
+
+        self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
+
+    async def turn_off_lights(self, kwargs: Dict[str, Any]) -> None:
+        if lights := kwargs.get("lights"):
+            self.lg(f"{stack()[0][3]}: {lights = }", level=logging.DEBUG)
+            for light in lights:
+                await self.call_service("homeassistant/turn_off", entity_id=light)
+            self.run_in_thread(self.turned_off, thread=3)
 
     async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
 
         self.lg(
-            f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = }"
+            f"{stack()[0][3]}: {self.thresholds.get(EntityType.ILLUMINANCE.idx) = }"
             f" | {self.dimming = } | {force = } | {bool(force or self.dimming) = }",
             level=logging.DEBUG,
         )
@@ -715,7 +728,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             # the "eco mode" check
             for sensor in self.sensors[EntityType.ILLUMINANCE.idx]:
                 self.lg(
-                    f"{stack()[0][3]}() {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | "
+                    f"{stack()[0][3]}: {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | "
                     f"{float(await self.get_state(sensor)) = }",
                     level=logging.DEBUG,
                 )
@@ -816,7 +829,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn off the lights."""
 
         self.lg(
-            f"{stack()[0][3]}() {await self.is_disabled()} | {await self.is_blocked() = }",
+            f"{stack()[0][3]} {await self.is_disabled()} | {await self.is_blocked() = }",
             level=logging.DEBUG,
         )
 
@@ -828,38 +841,39 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await self.clear_handles()
 
         self.lg(
-            f"{stack()[0][3]}() "
+            f"{stack()[0][3]}: "
             f"{any([await self.get_state(entity) == 'on' for entity in self.lights]) = }"
             f" | {self.lights = }",
             level=logging.DEBUG,
         )
 
-        if any([await self.get_state(entity) == "on" for entity in self.lights]):
-            at_least_one_turned_off = False
-            for entity in self.lights:
-                if self.only_own_events:
-                    if entity in self._switched_on_by_automoli:
-                        await self.call_service("homeassistant/turn_off", entity_id=entity)
-                        self._switched_on_by_automoli.remove(entity)
-                        at_least_one_turned_off = True
-                else:
-                    await self.call_service("homeassistant/turn_off", entity_id=entity)
-                    at_least_one_turned_off = True
-            if at_least_one_turned_off:
-                await self.turned_off()
+        # if any([await self.get_state(entity) == "on" for entity in self.lights]):
+        if all([await self.get_state(entity) == "off" for entity in self.lights]):
+            return
 
-            # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
-            # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
-            # mod:
-            # https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
-            for sensor in self.sensors[EntityType.MOTION.idx]:
-                await self.set_state(
-                    sensor,
-                    state="off",
-                    attributes=(await self.get_state(sensor, attribute="all")).get(
-                        "attributes", {}
-                    ),
-                )
+        at_least_one_turned_off = False
+        for entity in self.lights:
+            if self.only_own_events:
+                if entity in self._switched_on_by_automoli:
+                    await self.call_service("homeassistant/turn_off", entity_id=entity)
+                    self._switched_on_by_automoli.remove(entity)
+                    at_least_one_turned_off = True
+            else:
+                await self.call_service("homeassistant/turn_off", entity_id=entity)
+                at_least_one_turned_off = True
+        if at_least_one_turned_off:
+            self.run_in_thread(self.turned_off, thread=3)
+
+        # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
+        # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
+        # mod:
+        # https://community.smartthings.com/t/making-xiaomi-motion-sensor-a-super-motion-sensor/139806
+        for sensor in self.sensors[EntityType.MOTION.idx]:
+            await self.set_state(
+                sensor,
+                state="off",
+                attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
+            )
 
     async def turned_off(self, kwargs: Dict[str, Any] = None) -> None:
         # cancel scheduled callbacks
