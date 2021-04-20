@@ -4,8 +4,11 @@
   @benleb / https://github.com/benleb/ad-automoli
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+import random
 
 from copy import deepcopy
 from datetime import time
@@ -13,7 +16,7 @@ from distutils.version import StrictVersion
 from enum import Enum, IntEnum
 from inspect import stack
 from pprint import pformat
-from typing import Any, Coroutine, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Coroutine, Iterable
 
 import hassapi as hass
 
@@ -33,7 +36,7 @@ DEFAULT_NAME = "daytime"
 DEFAULT_LIGHT_SETTING = 100
 DEFAULT_DELAY = 150
 DEFAULT_DIM_METHOD = "step"
-DEFAULT_DAYTIMES: List[Dict[str, Union[str, int]]] = [
+DEFAULT_DAYTIMES: list[dict[str, str | int]] = [
     dict(starttime="05:30", name="morning", light=25),
     dict(starttime="07:30", name="day", light=100),
     dict(starttime="20:30", name="evening", light=90),
@@ -76,7 +79,7 @@ KEYWORDS = {
 
 
 def install_pip_package(
-    pkg: str, version: str = "", install_name: Optional[str] = None, pre_release: bool = False
+    pkg: str, version: str = "", install_name: str | None = None, pre_release: bool = False
 ) -> None:
     import importlib
     import site
@@ -136,8 +139,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self,
         msg: str,
         *args: Any,
-        level: Optional[int] = None,
-        icon: Optional[str] = None,
+        level: int | None = None,
+        icon: str | None = None,
         repeat: int = 1,
         **kwargs: Any,
     ) -> None:
@@ -151,9 +154,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
             return
 
     def listr(
-        self, list_or_string: Union[List[str], Set[str], str, Any], entities_exist: bool = True
-    ) -> Set[str]:
-        entity_list: List[str] = []
+        self, list_or_string: list[str] | set[str] | str | Any, entities_exist: bool = True
+    ) -> set[str]:
+        entity_list: list[str] = []
 
         if isinstance(list_or_string, str):
             entity_list.append(list_or_string)
@@ -172,9 +175,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
         self.icon = APP_ICON
 
         # get a real dict for the configuration
-        self.args: Dict[str, Any] = dict(self.args)
+        self.args: dict[str, Any] = dict(self.args)
 
         self.loglevel = logging.DEBUG if self.args.get("debug_log", False) else logging.INFO
+
+        # notification thread (prevents doubled messages)
+        self.notify_thread = random.randint(0, 9)
 
         self.lg(f"setting log level to {logging.getLevelName(self.loglevel)}", level=logging.DEBUG)
 
@@ -218,14 +224,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # experimental dimming features
         self.dimming: bool = False
-        self.dim: Optional[Dict[str, Union[float, int]]] = {}
+        self.dim: dict[str, float | int] | None = {}
         if (dim := self.args.pop("dim", {})) and (
             seconds_before := dim.pop("seconds_before", None)
         ):
 
             brightness_step_pct = dim.pop("brightness_step_pct", None)
 
-            dim_method: Optional[DimMethod] = None
+            dim_method: DimMethod | None = None
             if method := dim.pop("method", None):
                 dim_method = (
                     DimMethod.TRANSITION if method.lower() == "transition" else DimMethod.STEP
@@ -242,21 +248,21 @@ class AutoMoLi(hass.Hass):  # type: ignore
             }
 
         # night mode settings
-        self.night_mode: Dict[str, Union[int, str]] = {}
+        self.night_mode: dict[str, int | str] = {}
         if night_mode := self.args.pop("night_mode", {}):
             self.night_mode = await self.configure_night_mode(night_mode)
 
         # on/off switch via input.boolean
-        self.disable_switch_entities: Set[str] = self.listr(
+        self.disable_switch_entities: set[str] = self.listr(
             self.args.pop("disable_switch_entities", set())
         )
-        self.disable_switch_states: Set[str] = self.listr(
+        self.disable_switch_states: set[str] = self.listr(
             self.args.pop("disable_switch_states", set(["off"]))
         )
 
         # store if an entity has been switched on by automoli
         self.only_own_events: bool = bool(self.args.pop("only_own_events", False))
-        self._switched_on_by_automoli: Set[str] = set()
+        self._switched_on_by_automoli: set[str] = set()
 
         self.disable_hue_groups: bool = self.args.pop("disable_hue_groups", False)
 
@@ -273,15 +279,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
             return
 
         # currently active daytime settings
-        self.active: Dict[str, Union[int, str]] = {}
+        self.active: dict[str, int | str] = {}
 
         # entity lists for initial discovery
         states = await self.get_state()
 
-        self.handle_turned_off: Optional[str] = None
+        self.handle_turned_off: str | None = None
 
         # define light entities switched by automoli
-        self.lights: Set[str] = self.args.pop("lights", set())
+        self.lights: set[str] = self.args.pop("lights", set())
         if not self.lights:
             room_light_group = f"light.{self.room_name}"
             if await self.entity_exists(room_light_group):
@@ -292,7 +298,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 )
 
         # sensors
-        self.sensors: Dict[str, Any] = {}
+        self.sensors: dict[str, Any] = {}
 
         # enumerate sensors for motion detection
         self.sensors[EntityType.MOTION.idx] = self.listr(
@@ -347,7 +353,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         daytimes = await self.build_daytimes(self.args.pop("daytimes", DEFAULT_DAYTIMES))
 
         # set up event listener for each sensor
-        listener: Set[Coroutine[Any, Any, Any]] = set()
+        listener: set[Coroutine[Any, Any, Any]] = set()
         for sensor in self.sensors[EntityType.MOTION.idx]:
 
             # listen to xiaomi sensors by default
@@ -406,7 +412,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         await asyncio.gather(*listener)
         await self.refresh_timer()
 
-    async def switch_daytime(self, kwargs: Dict[str, Any]) -> None:
+    async def switch_daytime(self, kwargs: dict[str, Any]) -> None:
         """Set new light settings according to daytime."""
 
         daytime = kwargs.get("daytime")
@@ -445,7 +451,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 )
 
     async def motion_cleared(
-        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
+        self, entity: str, attribute: str, old: str, new: str, kwargs: dict[str, Any]
     ) -> None:
         """wrapper for motion sensors that do not push a certain event but.
         instead the default HA `state_changed` event is used for presence detection
@@ -473,7 +479,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             await self.clear_handles()
 
     async def motion_detected(
-        self, entity: str, attribute: str, old: str, new: str, kwargs: Dict[str, Any]
+        self, entity: str, attribute: str, old: str, new: str, kwargs: dict[str, Any]
     ) -> None:
         """wrapper for motion sensors that do not push a certain event but.
         instead the default HA `state_changed` event is used for presence detection
@@ -497,10 +503,10 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
 
         # calling motion event handler
-        data: Dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
+        data: dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
         await self.motion_event("state_changed_detection", data, kwargs)
 
-    async def motion_event(self, event: str, data: Dict[str, str], kwargs: Dict[str, Any]) -> None:
+    async def motion_event(self, event: str, data: dict[str, str], kwargs: dict[str, Any]) -> None:
         """Main handler for motion events."""
 
         self.lg(
@@ -535,7 +541,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         required_version = required_version if required_version else "4.0.7"
         return bool(StrictVersion(self.get_ad_version()) >= StrictVersion(required_version))
 
-    async def clear_handles(self, handles: Set[str] = None) -> None:
+    async def clear_handles(self, handles: set[str] = None) -> None:
         """clear scheduled timers/callbacks."""
 
         if not handles:
@@ -659,7 +665,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         ):
 
             seconds_before = int(self.dim["seconds_before"])
-            dim_attributes: Dict[str, int] = {}
+            dim_attributes: dict[str, int] = {}
 
             self.lg(f"{stack()[0][3]}: {dim_method = } | {seconds_before = }", level=logging.DEBUG)
 
@@ -705,12 +711,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg(message, icon=OFF_ICON, level=logging.DEBUG)
 
-    async def turn_off_lights(self, kwargs: Dict[str, Any]) -> None:
+    async def turn_off_lights(self, kwargs: dict[str, Any]) -> None:
         if lights := kwargs.get("lights"):
             self.lg(f"{stack()[0][3]}: {lights = }", level=logging.DEBUG)
             for light in lights:
                 await self.call_service("homeassistant/turn_off", entity_id=light)
-            self.run_in_thread(self.turned_off, thread=3)
+            self.run_in_thread(self.turned_off, thread=self.notify_thread)
 
     async def lights_on(self, force: bool = False) -> None:
         """Turn on the lights."""
@@ -825,7 +831,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         else:
             raise ValueError(f"invalid brightness/scene: {light_setting!s} " f"in {self.room}")
 
-    async def lights_off(self, kwargs: Dict[str, Any]) -> None:
+    async def lights_off(self, kwargs: dict[str, Any]) -> None:
         """Turn off the lights."""
 
         self.lg(
@@ -862,7 +868,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 await self.call_service("homeassistant/turn_off", entity_id=entity)
                 at_least_one_turned_off = True
         if at_least_one_turned_off:
-            self.run_in_thread(self.turned_off, thread=3)
+            self.run_in_thread(self.turned_off, thread=self.notify_thread)
 
         # experimental | reset for xiaomi "super motion" sensors | idea from @wernerhp
         # app: https://github.com/wernerhp/appdaemon_aqara_motion_sensors
@@ -875,7 +881,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
             )
 
-    async def turned_off(self, kwargs: Dict[str, Any] = None) -> None:
+    async def turned_off(self, kwargs: dict[str, Any] = None) -> None:
         # cancel scheduled callbacks
         await self.clear_handles()
 
@@ -886,8 +892,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         )
 
     async def find_sensors(
-        self, keyword: str, room_name: str, states: Dict[str, Dict[str, Any]]
-    ) -> List[str]:
+        self, keyword: str, room_name: str, states: dict[str, dict[str, Any]]
+    ) -> list[str]:
         """Find sensors by looking for a keyword in the friendly_name."""
 
         def lower_umlauts(text: str, single: bool = True) -> str:
@@ -900,7 +906,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 .replace("ß", "ss")
             ).lower()
 
-        matches: List[str] = []
+        matches: list[str] = []
         for state in states.values():
             if keyword in (entity_id := state.get("entity_id", "")) and lower_umlauts(
                 room_name
@@ -911,9 +917,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         return matches
 
-    async def configure_night_mode(
-        self, night_mode: Dict[str, Union[int, str]]
-    ) -> Dict[str, Union[int, str]]:
+    async def configure_night_mode(self, night_mode: dict[str, int | str]) -> dict[str, int | str]:
 
         # check if a enable/disable entity is given and exists
         if not ((nm_entity := night_mode.pop("entity")) and await self.entity_exists(nm_entity)):
@@ -925,10 +929,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         return {"entity": nm_entity, "light": nm_light_setting}
 
-    async def build_daytimes(
-        self, daytimes: List[Any]
-    ) -> Optional[List[Dict[str, Union[int, str]]]]:
-        starttimes: Set[time] = set()
+    async def build_daytimes(self, daytimes: list[Any]) -> list[dict[str, int | str]] | None:
+        starttimes: set[time] = set()
 
         for idx, daytime in enumerate(daytimes):
             dt_name = daytime.get("name", f"{DEFAULT_NAME}_{idx}")
@@ -1007,7 +1009,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         return daytimes
 
-    def show_info(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def show_info(self, config: dict[str, Any] | None = None) -> None:
         # check if a room is given
 
         if config:
@@ -1072,7 +1074,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             else:
                 self.lg(f"{indent}· {hl(item)}")
 
-    def _print_cfg_setting(self, key: str, value: Union[int, str], indentation: int) -> None:
+    def _print_cfg_setting(self, key: str, value: int | str, indentation: int) -> None:
         unit = prefix = ""
         indent = indentation * " "
 
