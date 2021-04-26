@@ -633,7 +633,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                     await self.refresh_timer()
                     self.lg(
-                        f"🛁 no motion in {hl(self.room.capitalize())} since "
+                        f"🛁 no motion in {hl(self.room.name.capitalize())} since "
                         f"{hl(natural_time(int(self.active['delay'])))} → "
                         f"but {hl(current_humidity)}%RH > "
                         f"{hl(humidity_threshold)}%RH"
