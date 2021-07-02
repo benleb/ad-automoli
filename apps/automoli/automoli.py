@@ -672,7 +672,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if dim_method == DimMethod.STEP:
                 dim_attributes = {"brightness_step_pct": int(self.dim["brightness_step_pct"])}
                 message = (
-                    f"{hl(self.room.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} |"
+                    f"{hl(self.room.name.capitalize())} → dim to {hl(self.dim['brightness_step_pct'])} |"
                     f" {hl('off')} in {natural_time(seconds_before)}"
                 )
 
