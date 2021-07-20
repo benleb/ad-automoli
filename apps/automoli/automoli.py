@@ -142,6 +142,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         level: int | None = None,
         icon: str | None = None,
         repeat: int = 1,
+        to_hass: bool = True,
         **kwargs: Any,
     ) -> None:
         kwargs.setdefault("ascii_encode", False)
@@ -151,7 +152,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if level >= self.loglevel:
             message = f"{f'{icon} ' if icon else ' '}{msg}"
             _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
-            return
+
+            if to_hass:
+                message = message.replace("\033[1m", "").replace("\033[0m", "")
+                self.call_service(
+                    "logbook/log",
+                    name=self.room.name.capitalize(),
+                    message=message,
+                    entity_id="light.esszimmer_decke",
+                )
+
+        return
 
     def listr(
         self, list_or_string: list[str] | set[str] | str | Any, entities_exist: bool = True
@@ -1023,9 +1034,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if "room" in self.config:
             room = f" · {hl(self.config['room'].capitalize())}"
 
-        self.lg("")
-        self.lg(f"{hl(APP_NAME)} v{hl(__version__)}{room}", icon=self.icon)
-        self.lg("")
+        self.lg("", to_hass=False)
+        self.lg(f"{hl(APP_NAME)} v{hl(__version__)}{room}", icon=self.icon, to_hass=False)
+        self.lg("", to_hass=False)
 
         listeners = self.config.pop("listeners", None)
 
@@ -1043,15 +1054,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self._print_cfg_setting(key, value, 2)
 
         if listeners:
-            self.lg("  event listeners:")
+            self.lg("  event listeners:", to_hass=False)
             for listener in sorted(listeners):
-                self.lg(f"    · {hl(listener)}")
+                self.lg(f"    · {hl(listener)}", to_hass=False)
 
-        self.lg("")
+        self.lg("", to_hass=False)
 
     def print_collection(self, key: str, collection: Iterable[Any], indentation: int = 0) -> None:
 
-        self.lg(f"{indentation * ' '}{key}:")
+        self.lg(f"{indentation * ' '}{key}:", to_hass=False)
         indentation = indentation + 2
 
         for item in collection:
@@ -1062,7 +1073,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if "name" in item:
                     self.print_collection(item.pop("name", ""), item, indentation)
                 else:
-                    self.lg(f"{indent}{hl(pformat(item, compact=True))}")
+                    self.lg(f"{indent}{hl(pformat(item, compact=True))}", to_hass=False)
 
             elif isinstance(collection, dict):
 
@@ -1072,7 +1083,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self._print_cfg_setting(item, collection[item], indentation)
 
             else:
-                self.lg(f"{indent}· {hl(item)}")
+                self.lg(f"{indent}· {hl(item)}", to_hass=False)
 
     def _print_cfg_setting(self, key: str, value: int | str, indentation: int) -> None:
         unit = prefix = ""
@@ -1085,6 +1096,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg(
                 f"{indent}{key}: {prefix}{hl(min_value)}{unit} ≈ " f"{hl(value)}sec",
                 ascii_encode=False,
+                to_hass=False,
             )
 
         else:
@@ -1093,4 +1105,4 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if "_prefixes" in self.config and key in self.config["_prefixes"]:
                 prefix = self.config["_prefixes"][key]
 
-            self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}")
+            self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}", to_hass=False)
