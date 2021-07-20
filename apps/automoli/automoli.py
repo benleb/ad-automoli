@@ -892,7 +892,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 attributes=(await self.get_state(sensor, attribute="all")).get("attributes", {}),
             )
 
-    async def turned_off(self, kwargs: dict[str, Any] = None) -> None:
+    async def turned_off(self, kwargs: dict[str, Any] | None = None) -> None:
         # cancel scheduled callbacks
         await self.clear_handles()
 
