@@ -113,7 +113,7 @@ def install_pip_package(
 
 
 # install adutils library
-install_pip_package("adutils", version="==0.6.1")
+install_pip_package("adutils", version=">=0.6.2")
 from adutils import (  # noqa
     Room,
     hl,
