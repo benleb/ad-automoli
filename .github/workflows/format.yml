@@ -10,4 +10,4 @@ jobs:
       - uses: actions/setup-python@v2
       - name: black
         uses: lgeiger/black-action@master
-        with: {args: . --check --diff --line-length=100}
+        with: { args: . --check --diff }
