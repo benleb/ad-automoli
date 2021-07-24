@@ -142,7 +142,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         level: int | None = None,
         icon: str | None = None,
         repeat: int = 1,
-        to_hass: bool = True,
+        log_to_ha: bool = True,
         **kwargs: Any,
     ) -> None:
         kwargs.setdefault("ascii_encode", False)
@@ -153,19 +153,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
             message = f"{f'{icon} ' if icon else ' '}{msg}"
             _ = [self.log(message, *args, **kwargs) for _ in range(repeat)]
 
-            if to_hass:
+            if log_to_ha or self.log_to_ha:
                 message = message.replace("\033[1m", "").replace("\033[0m", "")
                 self.call_service(
                     "logbook/log",
-                    name=self.room.name.capitalize(),
-                    message=message,
-                    entity_id="light.esszimmer_decke",
+                    name=self.room.name.capitalize(),  # type:ignore
+                    message=message,  # type:ignore
+                    entity_id="light.esszimmer_decke",  # type:ignore
                 )
 
-        return
-
     def listr(
-        self, list_or_string: list[str] | set[str] | str | Any, entities_exist: bool = True
+        self,
+        list_or_string: list[str] | set[str] | str | Any,
+        entities_exist: bool = True,
     ) -> set[str]:
         entity_list: list[str] = []
 
@@ -188,12 +188,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # get a real dict for the configuration
         self.args: dict[str, Any] = dict(self.args)
 
-        self.loglevel = logging.DEBUG if self.args.get("debug_log", False) else logging.INFO
+        self.loglevel = (
+            logging.DEBUG if self.args.get("debug_log", False) else logging.INFO
+        )
+
+        self.log_to_ha = self.args.get("log_to_ha", False)
 
         # notification thread (prevents doubled messages)
-        self.notify_thread = random.randint(0, 9)
+        self.notify_thread = random.randint(0, 9)  # nosec
 
-        self.lg(f"setting log level to {logging.getLevelName(self.loglevel)}", level=logging.DEBUG)
+        self.lg(
+            f"setting log level to {logging.getLevelName(self.loglevel)}",
+            level=logging.DEBUG,
+        )
 
         # python version check
         if not py39_or_higher:
@@ -1050,9 +1057,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if "room" in self.config:
             room = f" · {hl(self.config['room'].capitalize())}"
 
-        self.lg("", to_hass=False)
-        self.lg(f"{hl(APP_NAME)} v{hl(__version__)}{room}", icon=self.icon, to_hass=False)
-        self.lg("", to_hass=False)
+        self.lg("", log_to_ha=False)
+        self.lg(
+            f"{hl(APP_NAME)} v{hl(__version__)}{room}", icon=self.icon, log_to_ha=False
+        )
+        self.lg("", log_to_ha=False)
 
         listeners = self.config.pop("listeners", None)
 
@@ -1070,15 +1079,17 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 self._print_cfg_setting(key, value, 2)
 
         if listeners:
-            self.lg("  event listeners:", to_hass=False)
+            self.lg("  event listeners:", log_to_ha=False)
             for listener in sorted(listeners):
-                self.lg(f"    · {hl(listener)}", to_hass=False)
+                self.lg(f"    · {hl(listener)}", log_to_ha=False)
 
-        self.lg("", to_hass=False)
+        self.lg("", log_to_ha=False)
 
-    def print_collection(self, key: str, collection: Iterable[Any], indentation: int = 0) -> None:
+    def print_collection(
+        self, key: str, collection: Iterable[Any], indentation: int = 0
+    ) -> None:
 
-        self.lg(f"{indentation * ' '}{key}:", to_hass=False)
+        self.lg(f"{indentation * ' '}{key}:", log_to_ha=False)
         indentation = indentation + 2
 
         for item in collection:
@@ -1089,7 +1100,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 if "name" in item:
                     self.print_collection(item.pop("name", ""), item, indentation)
                 else:
-                    self.lg(f"{indent}{hl(pformat(item, compact=True))}", to_hass=False)
+                    self.lg(
+                        f"{indent}{hl(pformat(item, compact=True))}", log_to_ha=False
+                    )
 
             elif isinstance(collection, dict):
 
@@ -1099,7 +1112,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     self._print_cfg_setting(item, collection[item], indentation)
 
             else:
-                self.lg(f"{indent}· {hl(item)}", to_hass=False)
+                self.lg(f"{indent}· {hl(item)}", log_to_ha=False)
 
     def _print_cfg_setting(self, key: str, value: int | str, indentation: int) -> None:
         unit = prefix = ""
@@ -1112,7 +1125,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.lg(
                 f"{indent}{key}: {prefix}{hl(min_value)}{unit} ≈ " f"{hl(value)}sec",
                 ascii_encode=False,
-                to_hass=False,
+                log_to_ha=False,
             )
 
         else:
@@ -1121,4 +1134,4 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if "_prefixes" in self.config and key in self.config["_prefixes"]:
                 prefix = self.config["_prefixes"][key]
 
-            self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}", to_hass=False)
+            self.lg(f"{indent}{key}: {prefix}{hl(value)}{unit}", log_to_ha=False)
