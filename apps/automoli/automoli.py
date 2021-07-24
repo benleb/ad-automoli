@@ -252,7 +252,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             else:
                 dim_method = DimMethod.NONE
 
-            self.dim = {
+            self.dim = {  # type: ignore
                 "brightness_step_pct": brightness_step_pct,
                 "seconds_before": int(seconds_before),
                 "method": dim_method.value,
@@ -627,7 +627,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             for sensor in self.sensors[EntityType.HUMIDITY.idx]:
                 try:
-                    current_humidity = float(await self.get_state(sensor))
+                    current_humidity = float(
+                        await self.get_state(sensor)  # type:ignore
+                    )
                 except ValueError as error:
                     self.lg(
                         f"self.get_state(sensor) raised a ValueError: {error}", level=logging.ERROR
@@ -707,7 +709,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if self.room.lights_undimmable:
                 for light in self.room.lights_dimmable:
 
-                    await self.call_service("light/turn_off", entity_id=light, **dim_attributes)
+                    await self.call_service(
+                        "light/turn_off",
+                        entity_id=light,  # type:ignore
+                        **dim_attributes,  # type:ignore
+                    )
                     await self.set_state(entity=light, state="off")
 
         # workaround to switch off lights that do not support dimming
@@ -751,7 +757,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 )
                 try:
                     if (
-                        illuminance := float(await self.get_state(sensor))
+                        illuminance := float(
+                            await self.get_state(sensor)  # type:ignore
+                        )  # type:ignore
                     ) >= illuminance_threshold:
                         self.lg(
                             f"According to {hl(sensor)} its already bright enough ¯\\_(ツ)_/¯"
@@ -786,8 +794,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 ):
                     await self.call_service(
                         "hue/hue_activate_scene",
-                        group_name=await self.friendly_name(entity),
-                        scene_name=light_setting,
+                        group_name=await self.friendly_name(entity),  # type:ignore
+                        scene_name=light_setting,  # type:ignore
                     )
                     if self.only_own_events:
                         self._switched_on_by_automoli.add(entity)
@@ -795,7 +803,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                 item = light_setting if light_setting.startswith("scene.") else entity
 
-                await self.call_service("homeassistant/turn_on", entity_id=item)
+                await self.call_service(
+                    "homeassistant/turn_on", entity_id=item  # type:ignore
+                )  # type:ignore
                 if self.only_own_events:
                     self._switched_on_by_automoli.add(item)
 
@@ -822,12 +832,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
                 for entity in self.lights:
                     if entity.startswith("switch."):
-                        await self.call_service("homeassistant/turn_on", entity_id=entity)
+                        await self.call_service(
+                            "homeassistant/turn_on", entity_id=entity  # type:ignore
+                        )
                     else:
                         await self.call_service(
                             "homeassistant/turn_on",
-                            entity_id=entity,
-                            brightness_pct=light_setting,
+                            entity_id=entity,  # type:ignore
+                            brightness_pct=light_setting,  # type:ignore
                         )
 
                         self.lg(
@@ -872,11 +884,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
         for entity in self.lights:
             if self.only_own_events:
                 if entity in self._switched_on_by_automoli:
-                    await self.call_service("homeassistant/turn_off", entity_id=entity)
+                    await self.call_service(
+                        "homeassistant/turn_off", entity_id=entity  # type:ignore
+                    )  # type:ignore
                     self._switched_on_by_automoli.remove(entity)
                     at_least_one_turned_off = True
             else:
-                await self.call_service("homeassistant/turn_off", entity_id=entity)
+                await self.call_service(
+                    "homeassistant/turn_off", entity_id=entity  # type:ignore
+                )  # type:ignore
                 at_least_one_turned_off = True
         if at_least_one_turned_off:
             self.run_in_thread(self.turned_off, thread=self.notify_thread)
