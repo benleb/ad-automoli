@@ -145,7 +145,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         level: int | None = None,
         icon: str | None = None,
         repeat: int = 1,
-        log_to_ha: bool = True,
+        log_to_ha: bool = False,
         **kwargs: Any,
     ) -> None:
         kwargs.setdefault("ascii_encode", False)
@@ -158,9 +158,22 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if log_to_ha or self.log_to_ha:
                 message = message.replace("\033[1m", "").replace("\033[0m", "")
+
+                # Python community recommend a strategy of
+                # "easier to ask for forgiveness than permission"
+                # https://stackoverflow.com/a/610923/13180763
+                try:
+                    ha_name = self.room.name.capitalize()
+                except AttributeError:
+                    ha_name = APP_NAME
+                    self.lg(
+                        "No room set yet, using 'AutoMoLi' forlogging to HA",
+                        level=logging.DEBUG,
+                    )
+
                 self.call_service(
                     "logbook/log",
-                    name=self.room.name.capitalize(),  # type:ignore
+                    name=ha_name,  # type:ignore
                     message=message,  # type:ignore
                     entity_id="light.esszimmer_decke",  # type:ignore
                 )
