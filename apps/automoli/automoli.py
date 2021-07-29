@@ -21,7 +21,7 @@ from typing import Any
 # pylint: disable=import-error
 import hassapi as hass
 
-__version__ = "0.11.1"
+__version__ = "0.11.2"
 
 APP_NAME = "AutoMoLi"
 APP_ICON = "💡"
