@@ -1,6 +1,5 @@
 """AutoMoLi.
    Automatic Motion Lights
-
   @benleb / https://github.com/benleb/ad-automoli
 """
 
@@ -429,14 +428,14 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 listener.add(
                     self.listen_state(
                         self.motion_detected,
-                        entity=sensor,
+                        entity_id=sensor,
                         new=self.states["motion_on"],
                     )
                 )
                 listener.add(
                     self.listen_state(
                         self.motion_cleared,
-                        entity=sensor,
+                        entity_id=sensor,
                         new=self.states["motion_off"],
                     )
                 )
@@ -518,7 +517,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
     ) -> None:
         """wrapper for motion sensors that do not push a certain event but.
         instead the default HA `state_changed` event is used for presence detection
-
         schedules the callback to switch the lights off after a `state_changed` callback
         of a motion sensors changing to "cleared" is received
         """
@@ -546,7 +544,6 @@ class AutoMoLi(hass.Hass):  # type: ignore
     ) -> None:
         """wrapper for motion sensors that do not push a certain event but.
         instead the default HA `state_changed` event is used for presence detection
-
         maps the `state_changed` callback of a motion sensors changing to "detected"
         to the `event` callback`
         """
@@ -799,7 +796,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         entity_id=light,  # type:ignore
                         **dim_attributes,  # type:ignore
                     )
-                    await self.set_state(entity=light, state="off")
+                    await self.set_state(entity_id=light, state="off")
 
         # workaround to switch off lights that do not support dimming
         if self.room.room_lights:
