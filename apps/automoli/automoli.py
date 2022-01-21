@@ -701,7 +701,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                     )
                 except ValueError as error:
                     self.lg(
-                        f"self.get_state(sensor) raised a ValueError: {error}",
+                        f"self.get_state(sensor) raised a ValueError for {sensor}: {error}",
                         level=logging.ERROR,
                     )
                     continue
