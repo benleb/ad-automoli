@@ -187,7 +187,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         if isinstance(list_or_string, str):
             entity_list.append(list_or_string)
-        elif isinstance(list_or_string, list) or isinstance(list_or_string, set):
+        elif isinstance(list_or_string, (list, set)):
             entity_list += list_or_string
         elif list_or_string:
             self.lg(
@@ -1178,7 +1178,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
             if key in ["module", "class"] or key.startswith("_"):
                 continue
 
-            if isinstance(value, list) or isinstance(value, set):
+            if isinstance(value, (list, set)):
                 self.print_collection(key, value, 2)
             elif isinstance(value, dict):
                 self.print_collection(key, value, 2)
