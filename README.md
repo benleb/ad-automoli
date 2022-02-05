@@ -137,10 +137,11 @@ key | optional | type | default | description
 `class` | False | string | AutoMoLi | The name of the Class.
 `room` | False | string | | The "room" used to find matching sensors/light
 `disable_switch_entities` | True | list/string | | One or more Home Assistant Entities as switch for AutoMoLi. If the state of **any** entity is *off*, AutoMoLi is *deactivated*. (Use an *input_boolean* for example)
-`only_own_events` | True | bool | | Track if automoli switched this light on. If not, an existing timer will be deleted and the state will not change
+`only_own_events` | True | bool | None | Track if automoli switched this light on. If not, automoli will not switch the light off. (see below)
 `disable_switch_states` | True | list/string | ["off"] | Custom states for `disable_switch_entities`. If the state of **any** entity is *in this list*, AutoMoLi is *deactivated*. Can be used to disable with `media_players` in `playing` state for example.
 `disable_hue_groups` | False | boolean | | Disable the use of Hue Groups/Scenes
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`
+`delay_outside_events` | True | integer | same as delay | Seconds without motion until lights will switched off, if they were turned on by an event outside automoli (e.g., manually, via automation, etc.). Can be disabled (lights stay always on) with `0`
 ~~`motion_event`~~ | ~~True~~ | ~~string~~ | | **replaced by `motion_state_on/off`**
 `daytimes` | True | list | *see code* | Different daytimes with light settings (see below)
 `transition_on_daytime_switch` | True | bool | False | directly activate a daytime on its start time (instead to just set it as active daytime used if lights are switched from off to on)
@@ -162,6 +163,14 @@ key | optional | type | default | description
 `name` | False | string | | A name for this daytime
 `delay` | True | integer | 150 | Seconds without motion until lights will switched off. Can be disabled (lights stay always on) with `0`. Setting this will overwrite the global `delay` setting for this daytime.
 `light` | False | integer/string | | Light setting (percent integer value (0-100) in or scene entity
+
+### only_own_events
+
+state | description
+-- | --
+None | Lights will be turned off after motion is detected, regardless of whether AutoMoLi turned the lights on.
+False | Lights will be turned off after motion is detected, regardless of whether AutoMoLi turned the lights on AND after the delay if they were turned on outside AutoMoLi (e.g., manually or via an automation). 
+True | Lights will only be turned off after motion is detected, if AutoMoLi turned the lights on.
 
 ---
 
