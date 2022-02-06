@@ -166,7 +166,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 except AttributeError:
                     ha_name = APP_NAME
                     self.lg(
-                        "No room set yet, using 'AutoMoLi' forlogging to HA",
+                        "No room set yet, using 'AutoMoLi' for logging to HA",
                         level=logging.DEBUG,
                     )
 
@@ -615,8 +615,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if await self.is_disabled():
             return
 
-        # turn on the lights if not already
-        if self.dimming or not any(
+        # turn on the lights if not all are already on
+        if self.dimming or not all(
             [await self.get_state(light) == "on" for light in self.lights]
         ):
             self.lg(
@@ -730,11 +730,16 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             if timer_info := await self.info_timer(handle):
                 self.lg(
-                    f"{fnn} scheduled callback to switch off the lights in {dim_in_sec}s "
+                    f"{fnn} scheduled callback to switch off the lights in {dim_in_sec}s at"
                     f"({timer_info[0].isoformat()}) | "
                     f"handles: {self.room.handles_automoli = }",
                     level=logging.DEBUG,
                 )
+        else:
+            self.lg(
+                "No delay was set or delay = 0, lights will not be switched off by AutoMoLi",
+                level=logging.DEBUG,
+            )
 
     async def night_mode_active(self) -> bool:
         return bool(
@@ -930,8 +935,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         if isinstance(light_setting, str):
 
-            # last check until we switch the lights on... really!
-            if not force and any(
+            # last check until we switch all the lights on... really!
+            if not force and all(
                 [await self.get_state(light) == "on" for light in self.lights]
             ):
                 self.lg("¯\\_(ツ)_/¯")
@@ -973,8 +978,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 await self.lights_off({})
 
             else:
-                # last check until we switch the lights on... really!
-                if not force and any(
+                # last check until we switch all the lights on... really!
+                if not force and all(
                     [await self.get_state(light) == "on" for light in self.lights]
                 ):
                     self.lg("¯\\_(ツ)_/¯")
@@ -992,12 +997,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
                             brightness_pct=light_setting,  # type:ignore
                         )
 
-                        self.lg(
-                            f"{hl(self.room.name.capitalize())} turned {hl('on')} → "
-                            f"brightness: {hl(light_setting)}%"
-                            f" | delay: {hl(natural_time(int(self.active['delay'])))}",
-                            icon=ON_ICON,
-                        )
+                    self.lg(
+                        f"{hl(self.room.name.capitalize())} turned {hl('on')} → "
+                        f"brightness: {hl(light_setting)}%"
+                        f" | delay: {hl(natural_time(int(self.active['delay'])))}",
+                        icon=ON_ICON,
+                    )
                     if self.only_own_events:
                         self._switched_on_by_automoli.add(entity)
 
@@ -1010,7 +1015,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
         """Turn off the lights."""
 
         self.lg(
-            f"{stack()[0][3]} {await self.is_disabled()} | {await self.is_blocked() = }",
+            f"{stack()[0][3]}: {await self.is_disabled() = } | {await self.is_blocked() = }",
             level=logging.DEBUG,
         )
 
@@ -1205,8 +1210,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
             starttimes.add(dt_start)
 
-            # check if this daytime should ne active now
-            if await self.now_is_between(str(dt_start), str(next_dt_start)):
+            # check if this daytime should be active now (and default true if only 1 daytime is provided)
+            if (
+                await self.now_is_between(str(dt_start), str(next_dt_start))
+                or len(daytimes) == 1
+            ):
                 await self.switch_daytime(dict(daytime=daytime, initial=True))
                 self.active_daytime = daytime.get("daytime")
 
