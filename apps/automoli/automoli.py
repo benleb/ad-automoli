@@ -952,8 +952,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         group_name=await self.friendly_name(entity),  # type:ignore
                         scene_name=light_setting,  # type:ignore
                     )
-                    if self.only_own_events:
-                        self._switched_on_by_automoli.add(entity)
+                    self._switched_on_by_automoli.add(entity)
                     continue
 
                 item = light_setting if light_setting.startswith("scene.") else entity
@@ -961,8 +960,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                 await self.call_service(
                     "homeassistant/turn_on", entity_id=item  # type:ignore
                 )  # type:ignore
-                if self.only_own_events:
-                    self._switched_on_by_automoli.add(item)
+                self._switched_on_by_automoli.add(item)
 
             self.lg(
                 f"{hl(self.room.name.capitalize())} turned {hl('on')} → "
@@ -1003,8 +1001,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         f" | delay: {hl(natural_time(int(self.active['delay'])))}",
                         icon=ON_ICON,
                     )
-                    if self.only_own_events:
-                        self._switched_on_by_automoli.add(entity)
+                    self._switched_on_by_automoli.add(entity)
 
         else:
             raise ValueError(
