@@ -468,6 +468,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         new="on",
                     )
                 )
+                # assume any lights that are currently on were switched on by AutoMoLi
+                if await self.get_state(light) == "on":
+                    self._switched_on_by_automoli.add(light)
 
         self.args.update(
             {
