@@ -302,6 +302,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
             self.args.pop("disable_switch_states", set(["off"]))
         )
 
+        # on/off switch by_sleep_confidence
+        self.disable_by_sleep_confidence: set[str] = self.listr(
+            self.args.pop("disable_by_sleep_confidence", set())
+        )
+        self.disable_by_sleep_confidence_states = int(self.args.pop("disable_by_sleep_confidence_states", "80"))
+
         # store if an entity has been switched on by automoli
         self.only_own_events: bool = bool(self.args.pop("only_own_events", False))
         self._switched_on_by_automoli: set[str] = set()
@@ -466,6 +472,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if self.disable_switch_entities:
             self.args.update({"disable_switch_entities": self.disable_switch_entities})
             self.args.update({"disable_switch_states": self.disable_switch_states})
+        
+        # add disable sleep confidence to config if given
+        if self.disable_by_sleep_confidence:
+            self.args.update({"disable_by_sleep_confidence": self.disable_by_sleep_confidence})
+            self.args.update({"disable_by_sleep_confidence_states": self.disable_by_sleep_confidence_states})
 
         # show parsed config
         self.show_info(self.args)
@@ -683,7 +694,19 @@ class AutoMoLi(hass.Hass):  # type: ignore
             ) and state in self.disable_switch_states:
                 self.lg(f"{APP_NAME} is disabled by {entity} with {state = }")
                 return True
-
+        ret = [False]
+        for entity in self.disable_by_sleep_confidence:
+            if (
+                state := await self.get_state(entity, copy=False)
+            ) and int(state) > self.disable_by_sleep_confidence_states:
+                self.lg(f"{APP_NAME} sleep by {entity} with {state = }")
+                ret.append(True)
+            else:
+                ret.append(False)
+        if all(ret) == True:
+            self.lg(f"{APP_NAME} 💤 all sleep")
+            self.call_service("light/turn_off", entity_id="all")
+            return True
         return False
 
     async def is_blocked(self) -> bool:
