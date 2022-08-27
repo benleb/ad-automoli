@@ -585,6 +585,11 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if await self.is_disabled():
             return
 
+        # If light already on we need to check if we have crossed the illuminance
+        #  threshhold here so we don't reset the timer
+        if await self.is_too_bright():
+            return
+
         # turn on the lights if not already
         if self.dimming or not any(
             [await self.get_state(light) == "on" for light in self.lights]
@@ -722,6 +727,38 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         return False
 
+    async def is_too_bright(self) -> bool:
+
+        if illuminance_threshold := self.thresholds.get(EntityType.ILLUMINANCE.idx):
+
+            # the "eco mode" check
+            for sensor in self.sensors[EntityType.ILLUMINANCE.idx]:
+                self.lg(
+                    f"{stack()[0][3]}: {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | "
+                    f"{float(await self.get_state(sensor)) = }",  # type:ignore
+                    level=logging.DEBUG,
+                )
+                try:
+                    if (
+                        illuminance := float(
+                            await self.get_state(sensor)  # type:ignore
+                        )  # type:ignore
+                    ) >= illuminance_threshold:
+                        self.lg(
+                            f"According to {hl(sensor)} its already bright enough ¯\\_(ツ)_/¯"
+                            f" | {illuminance} >= {illuminance_threshold}"
+                        )
+                        return True
+
+                except ValueError as error:
+                    self.lg(
+                        f"could not parse illuminance '{await self.get_state(sensor)}' "
+                        f"from '{sensor}': {error}"
+                    )
+                    return False
+        return False
+
+
     async def dim_lights(self, _: Any) -> None:
 
         message: str = ""
@@ -828,33 +865,8 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         force = bool(force or self.dimming)
 
-        if illuminance_threshold := self.thresholds.get(EntityType.ILLUMINANCE.idx):
-
-            # the "eco mode" check
-            for sensor in self.sensors[EntityType.ILLUMINANCE.idx]:
-                self.lg(
-                    f"{stack()[0][3]}: {self.thresholds.get(EntityType.ILLUMINANCE.idx) = } | "
-                    f"{float(await self.get_state(sensor)) = }",  # type:ignore
-                    level=logging.DEBUG,
-                )
-                try:
-                    if (
-                        illuminance := float(
-                            await self.get_state(sensor)  # type:ignore
-                        )  # type:ignore
-                    ) >= illuminance_threshold:
-                        self.lg(
-                            f"According to {hl(sensor)} its already bright enough ¯\\_(ツ)_/¯"
-                            f" | {illuminance} >= {illuminance_threshold}"
-                        )
-                        return
-
-                except ValueError as error:
-                    self.lg(
-                        f"could not parse illuminance '{await self.get_state(sensor)}' "
-                        f"from '{sensor}': {error}"
-                    )
-                    return
+        if await self.is_too_bright():
+            return
 
         light_setting = (
             self.active.get("light_setting")
