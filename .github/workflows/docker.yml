@@ -48,9 +48,9 @@ jobs:
           file: ./demo/Dockerfile
           tags: |
             benleb/automoli:latest
-            benleb/automoli:0.11.3
+            benleb/automoli:0.11.4
             ghcr.io/benleb/ad-automoli:latest
-            ghcr.io/benleb/ad-automoli:0.11.3
+            ghcr.io/benleb/ad-automoli:0.11.4
           platforms: ${{ matrix.platform }}
           build-args: |
             APPDAEMON_VERSION=4.0.6
