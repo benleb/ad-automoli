@@ -127,7 +127,7 @@ For the auto-discovery of your lights and sensors to work, AutoMoLi expects moti
 * *binary_sensor.motion_sensor_`room`_something*
 * *light.`room`*
 
-AutoMoLi will detect them automatically. Manually configured entities will take precedence.
+AutoMoLi will detect them automatically. Manually configured entities will take precedence, but **need** to follow the naming scheme above.
 
 ## Configuration Options
 
