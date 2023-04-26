@@ -245,6 +245,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
         # general delay
         self.delay = int(self.args.pop("delay", DEFAULT_DELAY))
 
+        # Delay override upon door open
+        self.door_open_delay = int(self.args.pop("door_open_delay", 0))
+
         # directly switch to new daytime light settings
         self.transition_on_daytime_switch: bool = bool(
             self.args.pop("transition_on_daytime_switch", False)
@@ -354,11 +357,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
             )
         )
 
+        # doors
+        self.doors: dict[str, Any] = {}
+
+        # enumerate sensors for doors
+        self.doors[EntityType.DOOR_WINDOW.idx] = self.listr(
+            self.args.pop(
+                "door",
+                await self.find_sensors(
+                    EntityType.DOOR_WINDOW.prefix, self.room_name, states
+                ),
+            )
+        )
+
         self.room = Room(
             name=self.room_name,
             room_lights=self.lights,
             motion=self.sensors[EntityType.MOTION.idx],
-            door_window=set(),
+            door_window=self.doors[EntityType.DOOR_WINDOW.idx],
             temperature=set(),
             push_data=dict(),
             appdaemon=self.get_ad_api(),
@@ -439,6 +455,15 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         new=self.states["motion_off"],
                     )
                 )
+
+        # set up event listener for door events
+        for door in self.doors[EntityType.DOOR_WINDOW.idx]:
+            listener.add(
+                self.listen_state(
+                    self.door_event,
+                    entity_id=door
+                )
+            )
 
         self.args.update(
             {
@@ -604,6 +629,24 @@ class AutoMoLi(hass.Hass):  # type: ignore
         if event != "state_changed_detection":
             await self.refresh_timer()
 
+    async def door_event(
+        self, entity: str, attribute: str, old: str, new: str, kwargs: dict[str, Any]
+    ) -> None:
+
+        self.lg(
+            f"{stack()[0][3]}: received '{old}' -> '{new}' event from {entity}",
+            level=logging.DEBUG
+        )
+        if new == "off":
+            # calling motion event handler for door close
+            data: dict[str, Any] = {"entity_id": entity, "new": new, "old": old}
+            await self.motion_event("state_changed_detection", data,kwargs)
+
+        else:
+            # Handle door open events by overriding the off delay
+            await self.refresh_timer(self.door_open_delay)
+
+
     def has_min_ad_version(self, required_version: str) -> bool:
         required_version = required_version if required_version else "4.0.7"
         return bool(
@@ -630,7 +673,7 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         self.lg(f"{stack()[0][3]}: cancelled scheduled callbacks", level=logging.DEBUG)
 
-    async def refresh_timer(self) -> None:
+    async def refresh_timer(self, delay_override: int = 0) -> None:
         """refresh delay timer."""
 
         fnn = f"{stack()[0][3]}:"
@@ -645,6 +688,9 @@ class AutoMoLi(hass.Hass):  # type: ignore
 
         # if no delay is set or delay = 0, lights will not switched off by AutoMoLi
         if delay := self.active.get("delay"):
+
+            if delay_override != 0:
+                delay = delay_override
 
             self.lg(
                 f"{fnn} {self.active = } | {delay = } | {self.dim = }",
@@ -719,6 +765,12 @@ class AutoMoLi(hass.Hass):  # type: ignore
                         f"{hl(humidity_threshold)}%RH"
                     )
                     return True
+
+        # The doors, if closed we are blocked
+        for door in self.doors[EntityType.DOOR_WINDOW.idx]:
+            if (await self.get_state(door) == "off"):
+                self.lg(f"blocked due to closed door : {door}", level=logging.DEBUG)
+                return True
 
         return False
 
